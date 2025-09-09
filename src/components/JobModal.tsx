@@ -20,6 +20,10 @@ import { UserContext } from "../state_management/UserContext";
 import { useUserJobs } from "../state_management/UserJobs.tsx"; // ⬅️ NEW
 import { hasOptimizedResumeLocal } from "../utils/hasOptimizedResumeLocal.ts";
 const AttachmentsModal = lazy(() => import("./AttachmentsModal"));
+import ResumeChangesComparison from "./ResumeChangesComparison.tsx";
+import { useOperationsStore } from "../state_management/Operations.ts";
+import { useResumeStore } from "./AiOprimizer/store/useResumeStore.ts";
+
 
 /* ---------- ENV ---------- */
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
@@ -58,32 +62,55 @@ async function uploadToCloudinary(
 
 /* ---------- Persist new image URLs into JobModel.attachments[] ---------- */
 async function persistAttachmentsToJob({
-  jobID,
-  userEmail,
-  urls,
-  token,
-}: {
-  jobID: string;
-  userEmail: string;
-  urls: string[];
-  token: string | null;
-}) {
-  const payload = {
-    action: "edit",
     jobID,
-    userDetails: { email: userEmail },
-    attachmentUrls: urls,
+    userEmail,
+    urls,
     token,
-  };
+    role,
+}: {
+    jobID: string;
+    userEmail: string;
+    urls: string[];
+    token: string | null;
+    role?: string;
+}) {
+  if (role == "operations") {
+    const payload = {
+        action: "edit",
+        jobID,
+        userDetails: { email: userEmail },
+        attachmentUrls: urls,
+    };
 
-  const res = await fetch(JOB_UPDATE_ENDPOINT, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+    const res = await fetch(`${API_BASE}/operations/jobs`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
 
-  if (!res.ok) throw new Error((await res.text()) || "Failed to persist attachments");
-  return res.json() as Promise<{ message?: string; updatedJobs?: any[] }>;
+    if (!res.ok)
+        throw new Error((await res.text()) || "Failed to persist attachments");
+    return res.json() as Promise<{ message?: string; updatedJobs?: any[] }>;
+  }
+  else{
+    const payload = {
+        action: "edit",
+        jobID,
+        userDetails: { email: userEmail },
+        attachmentUrls: urls,
+        token,
+    };
+
+    const res = await fetch(JOB_UPDATE_ENDPOINT, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok)
+        throw new Error((await res.text()) || "Failed to persist attachments");
+    return res.json() as Promise<{ message?: string; updatedJobs?: any[] }>;
+  }
+    
 }
 
 /* ---------- Persist optimized resume to UserModel via PlanSelect ---------- */
@@ -91,36 +118,77 @@ async function persistOptimizedResumeToUser({
   token,
   userEmail,
   entry,
+  role,
 }: {
   token: string | null;
   userEmail: string;
+  role?: string;
   entry: { url: string; companyName?: string; jobRole?: string; jobId?: string; jobLink?: string };
 }) {
-  const payload = {
-    token,
-    userDetails: { email: userEmail },
-    optimizedResumeEntry: {
-      url: entry.url,
-      companyName: entry.companyName ?? "",
-      jobRole: entry.jobRole ?? "",
-      jobId: entry.jobId ?? "",
-      jobLink: entry.jobLink ?? "",
-    },
-  };
+  if (role == "operations") {
+        const payload = {
+            userDetails: { email: userEmail },
+            optimizedResumeEntry: {
+                url: entry.url,
+                companyName: entry.companyName ?? "",
+                jobRole: entry.jobRole ?? "",
+                jobId: entry.jobId ?? "",
+                jobLink: entry.jobLink ?? "",
+            },
+        };
 
-  const res = await fetch(PLAN_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+        const res = await fetch(`${API_BASE}/operations/plans/select`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
 
-  const text = await res.text();
-  let json: any = {};
-  try {
-    json = text ? JSON.parse(text) : {};
-  } catch {}
-  if (!res.ok) throw new Error((json && json.message) || text || "Failed to save optimized resume");
-  return json as { message?: string; userDetails?: any };
+        const text = await res.text();
+        let json: any = {};
+        try {
+            json = text ? JSON.parse(text) : {};
+        } catch { }
+        if (!res.ok)
+            throw new Error(
+                (json && json.message) ||
+                text ||
+                "Failed to save optimized resume"
+            );
+        return json as { message?: string; userDetails?: any };
+    }
+    else {
+      const payload = {
+          token,
+          userDetails: { email: userEmail },
+          optimizedResumeEntry: {
+              url: entry.url,
+              companyName: entry.companyName ?? "",
+              jobRole: entry.jobRole ?? "",
+              jobId: entry.jobId ?? "",
+              jobLink: entry.jobLink ?? "",
+          },
+      };
+
+      const res = await fetch(PLAN_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      let json: any = {};
+      try {
+          json = text ? JSON.parse(text) : {};
+      } catch {}
+      if (!res.ok)
+          throw new Error(
+              (json && json.message) ||
+                  text ||
+                  "Failed to save optimized resume"
+          );
+      return json as { message?: string; userDetails?: any };
+    }
+  
 }
 
 type Sections = "details" | "link" | "description" | "attachments" | "timeline";
@@ -142,6 +210,8 @@ export default function JobModal({
   const token = ctx?.token ?? null;
   const setData = ctx?.setData ?? null;
   const currentUser = ctx?.userDetails ?? {};
+  
+const { role } = useOperationsStore();
   
 
   // NEW (paste-to-upload buffer)
@@ -263,10 +333,11 @@ useEffect(() => {
 
         // persist to backend
         const resp = await persistAttachmentsToJob({
-          jobID,
-          userEmail,
-          urls,
-          token,
+            jobID,
+            userEmail,
+            urls,
+            token,
+            role,
         });
 
         // sync from server list
@@ -320,10 +391,11 @@ useEffect(() => {
       setAttachments((prev) => [url, ...prev]);
 
       const resp = await persistAttachmentsToJob({
-        jobID,
-        userEmail,
-        urls: [url],
-        token,
+          jobID,
+          userEmail,
+          urls: [url],
+          token,
+          role,
       });
 
       if (resp?.updatedJobs) {
@@ -380,15 +452,16 @@ useEffect(() => {
 
       // 2) persist to user (PlanSelect + LocalTokenValidator)
       const resp = await persistOptimizedResumeToUser({
-        token,
-        userEmail,
-        entry: {
-          url,
-          companyName: jobDetails?.companyName,
-          jobRole: jobDetails?.jobTitle,
-          jobId: jobDetails?.jobID,
-          jobLink: jobDetails?.joblink,
-        },
+          token,
+          userEmail,
+          entry: {
+              url,
+              companyName: jobDetails?.companyName,
+              jobRole: jobDetails?.jobTitle,
+              jobId: jobDetails?.jobID,
+              jobLink: jobDetails?.joblink,
+          },
+          role,
       });
 
       // 3) UPDATE CONTEXT + LOCALSTORAGE with server user details
@@ -418,6 +491,7 @@ useEffect(() => {
       setIsUploadingDoc(false);
     }
   };
+  const { setJobDescription } = useResumeStore();
 
   const sections = [
     { id: "details", label: "Job Details", icon: FileText, color: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -794,76 +868,132 @@ useEffect(() => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-      <div className="relative w-full max-w-6xl h-[90vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="w-full bg-gradient-to-r from-orange-600 to-red-500 text-white p-4 z-10">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <FileText className="w-6 h-6 mr-3" />
-              <div>
-                <h1 className="text-xl font-bold">📄 FlashFire Jobs</h1>
-                <p className="text-orange-100 text-sm">
-                  {jobDetails.jobTitle} at {jobDetails.companyName}
-                </p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="relative w-full max-w-6xl h-[90vh] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="w-full bg-gradient-to-r from-orange-600 to-red-500 text-white p-4 z-10">
+                  <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                          <FileText className="w-6 h-6 mr-3" />
+                          <div>
+                              <h1 className="text-xl font-bold">
+                                  📄 FlashFire Jobs
+                              </h1>
+                              <p className="text-orange-100 text-sm">
+                                  {jobDetails.jobTitle} at{" "}
+                                  {jobDetails.companyName}
+                              </p>
+                          </div>
+                      </div>
+                      {role == "operations" ? (
+                          <button
+                              onClick={() => {
+                                  setJobDescription(jobDetails.jobDescription);
+                                  window.open(
+                                      `/optimize/${jobDetails._id}`,
+                                      "_blank"
+                                  );
+                              }}
+                              className="hover:bg-orange-900 hover:bg-opacity-20 p-2 rounded-full transition-colors bg-orange-700"
+                          >
+                              Optimize resume
+                          </button>
+                      ) : null}
+                      <button
+                          onClick={() => setShowJobModal(false)}
+                          className="hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-colors"
+                      >
+                          <X className="w-6 h-6" />
+                      </button>
+                  </div>
               </div>
-            </div>
-            <button
-              onClick={() => setShowJobModal(false)}
-              className="hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+
+              {/* Body */}
+              <div className="flex flex-1 overflow-hidden">
+                  {/* Sidebar */}
+                  <div className="w-56 bg-gray-50 border-r border-gray-200 py-6 px-3">
+                      <nav className="space-y-2">
+                          {[
+                              {
+                                  id: "details",
+                                  label: "Job Details",
+                                  icon: FileText,
+                                  color: "bg-blue-50 text-blue-700 border-blue-200",
+                              },
+                              {
+                                  id: "link",
+                                  label: "Job Link",
+                                  icon: Link,
+                                  color: "bg-green-50 text-green-700 border-green-200",
+                              },
+                              {
+                                  id: "description",
+                                  label: "Job Description",
+                                  icon: Briefcase,
+                                  color: "bg-purple-50 text-purple-700 border-purple-200",
+                              },
+                              {
+                                  id: "attachments",
+                                  label: "Resume / Attachments",
+                                  icon: User,
+                                  color: "bg-orange-50 text-orange-700 border-orange-200",
+                              },
+                              {
+                                  id: "timeline",
+                                  label: "Application Timeline",
+                                  icon: TimerIcon,
+                                  color: "bg-brown-800 text-orange-700 border-orange-200",
+                              },
+                          ].map((section: any) => {
+                              const Icon = section.icon;
+                              const isActive = activeSection === section.id;
+                              return (
+                                  <button
+                                      key={section.id}
+                                      onClick={() =>
+                                          setActiveSection(section.id)
+                                      }
+                                      className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-all duration-200 text-sm ${
+                                          isActive
+                                              ? `${section.color} border shadow-sm`
+                                              : "text-gray-700 hover:bg-white hover:shadow-sm border border-transparent"
+                                      }`}
+                                  >
+                                      <Icon
+                                          className={`w-5 h-5 mr-2 ${
+                                              isActive ? "" : "text-gray-500"
+                                          }`}
+                                      />
+                                      <span className="font-medium">
+                                          {section.label}
+                                      </span>
+                                      {isActive && (
+                                          <ArrowRight className="w-4 h-4 ml-auto" />
+                                      )}
+                                  </button>
+                              );
+                          })}
+                      </nav>
+                  </div>
+
+                  {/* Main Content */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                      {renderContent()}
+                  </div>
+              </div>
+
+              {/* Image Lightbox */}
+              {attachmentsModalActiveStatus && (
+                  <Suspense fallback={<LoadingScreen />}>
+                      <AttachmentsModal
+                          imageLink={selectedImage}
+                          setAttachmentsModalActiveStatus={
+                              setAttachmentsModalActiveStatus
+                          }
+                      />
+                  </Suspense>
+              )}
           </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-56 bg-gray-50 border-r border-gray-200 py-6 px-3">
-            <nav className="space-y-2">
-              {[
-                { id: "details", label: "Job Details", icon: FileText, color: "bg-blue-50 text-blue-700 border-blue-200" },
-                { id: "link", label: "Job Link", icon: Link, color: "bg-green-50 text-green-700 border-green-200" },
-                { id: "description", label: "Job Description", icon: Briefcase, color: "bg-purple-50 text-purple-700 border-purple-200" },
-                { id: "attachments", label: "Resume / Attachments", icon: User, color: "bg-orange-50 text-orange-700 border-orange-200" },
-                { id: "timeline", label: "Application Timeline", icon: TimerIcon, color: "bg-brown-800 text-orange-700 border-orange-200" },
-              ].map((section: any) => {
-                const Icon = section.icon;
-                const isActive = activeSection === section.id;
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-all duration-200 text-sm ${
-                      isActive
-                        ? `${section.color} border shadow-sm`
-                        : "text-gray-700 hover:bg-white hover:shadow-sm border border-transparent"
-                    }`}
-                  >
-                    <Icon className={`w-5 h-5 mr-2 ${isActive ? "" : "text-gray-500"}`} />
-                    <span className="font-medium">{section.label}</span>
-                    {isActive && <ArrowRight className="w-4 h-4 ml-auto" />}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 overflow-y-auto p-6">{renderContent()}</div>
-        </div>
-
-        {/* Image Lightbox */}
-        {attachmentsModalActiveStatus && (
-          <Suspense fallback={<LoadingScreen />}>
-            <AttachmentsModal
-              imageLink={selectedImage}
-              setAttachmentsModalActiveStatus={setAttachmentsModalActiveStatus}
-            />
-          </Suspense>
-        )}
       </div>
-    </div>
   );
 }

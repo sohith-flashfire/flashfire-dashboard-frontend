@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, CheckCircle,TrendingUp, Users, Award, Clock, Cross, X } from "lucide-react";
 import { UserContext } from "../state_management/UserContext";
 import { useUserProfile } from "../state_management/ProfileContext";
+import { useOperationsStore } from "../state_management/Operations";
 // import {userP}
 // import { GoogleLogin } from '@react-oauth/google';
 
@@ -12,6 +13,7 @@ interface LoginResponse {
   token?: string;
   userDetails?: any; 
   userProfile?:any;
+  user?: any;
 }
 
 
@@ -25,6 +27,8 @@ export default function LoginPage({activeTab, onTabChange}: {activeTab: string, 
   const [response, setResponse] = useState<LoginResponse | null>(null);
 
   const navigate = useNavigate();
+  const { setName, setEmailOperations, setRole, setManagedUsers } =
+      useOperationsStore();
   const { setData } = useContext(UserContext);
   const { setProfileFromApi } = useUserProfile();
   const validate = () => {
@@ -83,24 +87,52 @@ const statsData = [
     setIsLoading(true);
     try {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const loginEndpoint = email.toLowerCase().includes("@flashfirehq")
+      ? "/operations/login"
+      : "/login";
 
-  const res = await fetch(`${API_BASE_URL}/login`, { //${API_BASE_URL}
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+  const res = await fetch(`${API_BASE_URL}${loginEndpoint}`, {
+      //${API_BASE_URL}
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
   });
 
-      const data: LoginResponse = await res.json();
-      setResponse(data);
+  if (loginEndpoint == "/operations/login") {
+                const data: LoginResponse = await res.json();
+                setResponse(data);
+                if (data?.message === "Login successful") {
+                    setName(data.user.name);
+                    setEmailOperations(data.user.email);
+                    setRole(data.user.role);
+                    setManagedUsers(data.user.managedUsers);
+                    navigate("/manage");
+                } else {
+                }
+            } else {
+              const data: LoginResponse = await res.json();
+              setResponse(data);
 
-      if (data?.message === "Login Success..!") {
-        setData({ userDetails: data?.userDetails, token: data?.token });
-        setProfileFromApi(data.userProfile);
-        localStorage.setItem("userAuth", JSON.stringify({ token: data?.token, userDetails: data?.userDetails ,userProfile : data?.userProfile}));
-        navigate('/'); // Switch to dashboard tab
-      } else {
-        setData({});
-      }
+              if (data?.message === "Login Success..!") {
+                  setData({
+                      userDetails: data?.userDetails,
+                      token: data?.token,
+                  });
+                  setProfileFromApi(data.userProfile);
+                  localStorage.setItem(
+                      "userAuth",
+                      JSON.stringify({
+                          token: data?.token,
+                          userDetails: data?.userDetails,
+                          userProfile: data?.userProfile,
+                      })
+                  );
+                  navigate("/"); // Switch to dashboard tab
+              } else {
+                  setData({});
+              }
+            }
+      
     } catch (err) {
       console.error(err);
     } finally {

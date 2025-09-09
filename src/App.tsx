@@ -13,6 +13,8 @@ import { UserProfileProvider } from './state_management/ProfileContext.tsx';
 import ProfilePage from './components/Profile.tsx';
 import Navigation from './components/Navigation.tsx';
 import NewUserModal from './components/NewUserModal.tsx';
+import ManagePage from './components/Operations/Manage.tsx';
+import Optimizer from './components/AiOprimizer/Optimizer.tsx';
 
 // Component to handle Profile page with proper navigation
 function ProfileWithNavigation() {
@@ -45,35 +47,79 @@ function App() {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID}>
-      <Router>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<UserProfileProvider><Login /></UserProfileProvider>} />
-          <Route path="/coreops" element={<UserProfileProvider><Register /></UserProfileProvider>} />
+      <GoogleOAuthProvider
+          clientId={import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID}
+      >
+          <Router>
+              <Routes>
+                  {/* Public routes */}
+                  <Route
+                      path="/login"
+                      element={
+                          <UserProfileProvider>
+                              <Login />
+                          </UserProfileProvider>
+                      }
+                  />
+                  <Route
+                      path="/coreops"
+                      element={
+                          <UserProfileProvider>
+                              <Register />
+                          </UserProfileProvider>
+                      }
+                  />
 
-          {/* Routes that require UserJobsProvider */}
-          <Route
-            path="/"
-            element={
-              <UserJobsProvider>
-                <UserProfileProvider>
-                  <MainContent />
-                </UserProfileProvider>                
-              </UserJobsProvider>
-            }
-          />
-          <Route path='/profile' element={
-                                           <UserJobsProvider>
-                                            <UserProfileProvider>
-                                              <ProfileWithNavigation />
-                                            </UserProfileProvider>                
-                                          </UserJobsProvider>
-                                          } />
-
-        </Routes>
-      </Router>
-    </GoogleOAuthProvider>
+                  {/* Routes that require UserJobsProvider */}
+                  <Route
+                      path="/"
+                      element={
+                          <UserJobsProvider>
+                              <UserProfileProvider>
+                                  <MainContent />
+                              </UserProfileProvider>
+                          </UserJobsProvider>
+                      }
+                  />
+                  <Route
+                      path="/manage"
+                      element={
+                          <UserProfileProvider>
+                              <ManagePage />
+                          </UserProfileProvider>
+                      }
+                  />
+                  <Route
+                      path="/operations/manage"
+                      element={
+                          <UserProfileProvider>
+                              <ManagePage />
+                          </UserProfileProvider>
+                      }
+                  />
+                  <Route
+                      path="/optimize/:jobId"
+                      element={
+                          <UserJobsProvider>
+                              <UserProfileProvider>
+                                  <Optimizer />
+                              </UserProfileProvider>
+                          </UserJobsProvider>
+                      }
+                  />
+                  <Route
+                      path="/profile"
+                      element={
+                          <UserJobsProvider>
+                              <UserProfileProvider>
+                                  <ProfileWithNavigation />
+                              </UserProfileProvider>
+                          </UserJobsProvider>
+                      }
+                  />
+              </Routes>
+          </Router>
+      </GoogleOAuthProvider>
   );
 }
 
