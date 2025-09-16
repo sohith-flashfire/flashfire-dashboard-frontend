@@ -7,7 +7,7 @@ import { Skills } from "./components/Skills";
 import { Education } from "./components/Education";
 import { ResumePreview } from "./components/ResumePreview";
 import { ChangesComparison } from "./components/ChangesComparison";
-import { RotateCcw, Save, Check } from "lucide-react";
+import { RotateCcw, Save, Check, LucideSaveAll } from "lucide-react";
 import { useResumeStore } from "./store/useResumeStore";
 import { useResumeUnlockStore } from "./store/resumeStore";
 import { initialData } from "./data/initialData";
@@ -19,6 +19,9 @@ import Login from "./components/Login";
 import AdminDashboard from "./components/AdminDashboard";
 import { ResumePreview1 } from "./components/ResumePreview1";
 import { PreviewStore } from "./store/PreviewStore";
+import { Publications } from "./components/Publications";
+import { ResumePreviewMedical } from "./components/ResumePreviewMedical";
+import './index.css'
 
 // Type definitions remain the same
 interface WorkExperienceItem {
@@ -55,10 +58,15 @@ interface EducationItem {
     duration: string;
     additionalInfo: string;
 }
+
 interface SkillCategory {
     id: string;
     category: string;
     skills: string;
+}
+interface PublicationItem {
+    id: string;
+    details: string;
 }
 type ResumeDataType = typeof initialData;
 
@@ -99,6 +107,8 @@ function App() {
         setChangedFields,
         resetStore,
         // setUserId,
+        showPublications,
+        setShowPublications,
     } = useResumeStore();
 
     const {
@@ -180,6 +190,21 @@ function App() {
             setShowLeadership(
                 resumeData.checkboxStates.showLeadership ?? false
             );
+            const hasValidPublications =
+                resumeData.publications &&
+                resumeData.publications.length > 0 &&
+                resumeData.publications.some(
+                    (item) => item.details && item.details.trim() !== ""
+                );
+            const hasOnlyEmptyPublications =
+                resumeData.publications &&
+                resumeData.publications.length > 0 &&
+                resumeData.publications.every(
+                    (item) => !item.details || item.details.trim() === ""
+                );
+            const finalHasPublications =
+                hasValidPublications && !hasOnlyEmptyPublications;
+            setShowPublications(finalHasPublications);
             console.log(
                 "Checkboxes set from saved states - Summary:",
                 resumeData.checkboxStates.showSummary,
@@ -368,10 +393,31 @@ function App() {
         console.log("showLeadership state changed to:", showLeadership);
     }, [showLeadership]);
 
+    useEffect(() => {
+        console.log("showPublications state changed to:", showPublications);
+    }, [showPublications]);
+
     // Note: Removed the useEffect that was overriding saved checkbox states
     // Now checkbox states are only set when explicitly loading resume data
 
     // Handle login success
+    const updatePublications = (data: PublicationItem[]) => {
+        setResumeData({ ...resumeData, publications: data });
+        trackChanges("publications");
+    };
+    const updateOptimizedPublications = (data: PublicationItem[]) => {
+        if (optimizedData) {
+            setOptimizedData((prev) =>
+                prev
+                    ? {
+                        ...prev,
+                        publications: data,
+                    }
+                    : null
+            );
+        }
+    };
+
     const handleLogin = async (
         loginToken: string,
         role?: string,
@@ -395,7 +441,7 @@ function App() {
                         import.meta.env.VITE_API_URL ||
                         (import.meta.env.DEV
                             ? import.meta.env.VITE_DEV_API_URL ||
-                              "http://localhost:8001"
+                            "http://localhost:8001"
                             : "");
                     const response = await fetch(
                         `${apiUrl}/api/default-resume/${userEmail}`
@@ -490,14 +536,15 @@ function App() {
         trackChanges("education");
     };
 
+
     const updateOptimizedSummary = (value: string) => {
         if (optimizedData) {
             setOptimizedData((prev) =>
                 prev
                     ? {
-                          ...prev,
-                          summary: value,
-                      }
+                        ...prev,
+                        summary: value,
+                    }
                     : null
             );
         }
@@ -508,9 +555,9 @@ function App() {
             setOptimizedData((prev) =>
                 prev
                     ? {
-                          ...prev,
-                          workExperience: data,
-                      }
+                        ...prev,
+                        workExperience: data,
+                    }
                     : null
             );
         }
@@ -521,9 +568,9 @@ function App() {
             setOptimizedData((prev) =>
                 prev
                     ? {
-                          ...prev,
-                          projects: data,
-                      }
+                        ...prev,
+                        projects: data,
+                    }
                     : null
             );
         }
@@ -533,9 +580,9 @@ function App() {
             setOptimizedData((prev) =>
                 prev
                     ? {
-                          ...prev,
-                          skills: data,
-                      }
+                        ...prev,
+                        skills: data,
+                    }
                     : null
             );
         }
@@ -545,9 +592,9 @@ function App() {
             setOptimizedData((prev) =>
                 prev
                     ? {
-                          ...prev,
-                          education: data,
-                      }
+                        ...prev,
+                        education: data,
+                    }
                     : null
             );
         }
@@ -576,6 +623,7 @@ function App() {
                     showSummary,
                     showProjects,
                     showLeadership,
+                    showPublications,
                 },
                 createdBy: userRole === "admin" ? "admin" : "user",
             };
@@ -620,18 +668,30 @@ function App() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ id: resume_id }),
+                body: JSON.stringify({ id: resume_id, version: versionV }),
             });
-
-            // const result = await response.json();
-            // if (!response.ok || !result.success) {
-            //     throw new Error(result.error || "Failed to save V1 resume");
-            // }
-
             alert("V1 resume saved go to All resume V1 to see it.");
         } catch (error) {
             alert("Error saving to V1 resume. Please try again.");
             console.error("Error saving to V1 resume:", error);
+        }
+    };
+    const handleV2Resume = async () => {
+        try {
+            console.log("Saving to V2 resume with ID:", resume_id);
+            const apiUrl =
+                import.meta.env.VITE_API_URL || "http://localhost:5000";
+            await fetch(`${apiUrl}/api/save-v2-resume`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ id: resume_id, version: versionV }),
+            });
+            alert("Medical resume saved go to Medical resume session  to see it.");
+        } catch (error) {
+            alert("Error saving to medical resume. Please try again.");
+            console.error("Error saving to medical resume:", error);
         }
     };
 
@@ -645,12 +705,12 @@ function App() {
         // Simple print with instructions
         const shouldPrint = window.confirm(
             `📄 PRINT SETTINGS:\n\n` +
-                `• Filename: ${filename}\n` +
-                `• Set Margins to "None"\n` +
-                `• Disable "Headers and footers"\n` +
-                `• Set Scale to 100%\n` +
-                `• Use "Save as PDF" for best quality\n\n` +
-                `Click OK to print your resume.`
+            `• Filename: ${filename}\n` +
+            `• Set Margins to "None"\n` +
+            `• Disable "Headers and footers"\n` +
+            `• Set Scale to 100%\n` +
+            `• Use "Save as PDF" for best quality\n\n` +
+            `Click OK to print your resume.`
         );
 
         if (shouldPrint) {
@@ -672,12 +732,12 @@ function App() {
                         if (resumeHeight > maxSinglePageHeight) {
                             alert(
                                 `📄 PRINT COMPLETED\n\n` +
-                                    `If you got a 2-page PDF instead of 1-page:\n\n` +
-                                    `Next time, in the print dialog:\n` +
-                                    `1. Click on "Pages" dropdown\n` +
-                                    `2. Select "Current" or enter "1"\n` +
-                                    `3. This ensures you get only the first page\n\n` +
-                                    `This helps avoid accidentally downloading multi-page resumes for job applications.`
+                                `If you got a 2-page PDF instead of 1-page:\n\n` +
+                                `Next time, in the print dialog:\n` +
+                                `1. Click on "Pages" dropdown\n` +
+                                `2. Select "Current" or enter "1"\n` +
+                                `3. This ensures you get only the first page\n\n` +
+                                `This helps avoid accidentally downloading multi-page resumes for job applications.`
                             );
                         }
                     }
@@ -768,6 +828,13 @@ function App() {
             changes.add("education");
         }
 
+        if (
+            JSON.stringify(original.publications) !==
+            JSON.stringify(optimized.publications)
+        ) {
+            changes.add("publications");
+        }
+
         return changes;
     };
 
@@ -776,12 +843,12 @@ function App() {
             setOptimizedData((prev) =>
                 prev
                     ? {
-                          ...prev,
-                          personalInfo: {
-                              ...prev.personalInfo,
-                              [field]: value,
-                          },
-                      }
+                        ...prev,
+                        personalInfo: {
+                            ...prev.personalInfo,
+                            [field]: value,
+                        },
+                    }
                     : null
             );
         }
@@ -792,9 +859,9 @@ function App() {
             setOptimizedData((prev) =>
                 prev
                     ? {
-                          ...prev,
-                          leadership: data,
-                      }
+                        ...prev,
+                        leadership: data,
+                    }
                     : null
             );
         }
@@ -811,7 +878,7 @@ function App() {
         try {
             // Get API URL from environment variables
             const prompt: string =
-                "Please optimize the resume according to the given JD. Make sure not to cut down or shorten any points in the Work Experience section. For example, if a role in the base resume has 6 points, the optimized version should also retain all 6 points. The content should be aligned with the JD but the number of points per role must remain the same.";
+                "Please optimize the resume according to the given JD. Make sure not to cut down or shorten any points in the Work Experience section. IN all fields please do not cut down or shorten any points or content. For example, if a role in the base resume has 6 points, the optimized version should also retain all 6 points. The content should be aligned with the JD but the number of points per role must remain the same. Do not touch or optimize publications if given to you";
             const apiUrl =
                 import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -846,6 +913,7 @@ function App() {
                         resumeData.workExperience,
                     skills: optimizedData.skills || resumeData.skills,
                     education: optimizedData.education || resumeData.education,
+                    publications: optimizedData.publications || resumeData.publications,
                 });
                 setCurrentResumeView("optimized"); // Automatically switch to optimized view
                 alert(
@@ -955,11 +1023,11 @@ function App() {
                         (resp, respIndex) =>
                             respIndex === 0
                                 ? `Enhanced version: ${resp
-                                      .replace("Boosted", "Accelerated")
-                                      .replace(
-                                          "by implementing",
-                                          "through strategic implementation of advanced"
-                                      )}`
+                                    .replace("Boosted", "Accelerated")
+                                    .replace(
+                                        "by implementing",
+                                        "through strategic implementation of advanced"
+                                    )}`
                                 : resp
                     ),
                 })),
@@ -992,7 +1060,6 @@ function App() {
         );
     }
 
-    // Resume Builder View
     return (
         <>
             <div className="min-h-screen bg-gray-50">
@@ -1067,11 +1134,10 @@ function App() {
                                             onClick={() =>
                                                 setShowChanges(!showChanges)
                                             }
-                                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                                                showChanges
-                                                    ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
-                                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                            }`}
+                                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${showChanges
+                                                ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                                }`}
                                         >
                                             {showChanges
                                                 ? " Hide Changes"
@@ -1081,18 +1147,6 @@ function App() {
 
                                 {/* Navigation Buttons */}
                                 <nav className="flex space-x-4">
-                                    {/* Parse Resume Button - Commented out */}
-                                    {/* <button
-                                        onClick={() => setShowParseModal(true)}
-                                        className="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-orange-600 text-white hover:bg-orange-700"
-                                    >
-                                        Parse Resume
-                                    </button>
-                                    <ResumeParserModal
-                                        open={showParseModal}
-                                        onClose={() => setShowParseModal(false)}
-                                        onSuccess={handleResumeParseSuccess}
-                                    /> */}
                                     <button
                                         onClick={() => {
                                             setVersion(1);
@@ -1101,6 +1155,15 @@ function App() {
                                         className="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-orange-600 text-white hover:bg-orange-700"
                                     >
                                         All resume V1
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setVersion(2);
+                                            setShowModal(true);
+                                        }}
+                                        className="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-orange-600 text-white hover:bg-orange-700"
+                                    >
+                                        Medical resumes
                                     </button>
 
                                     {/* All Resumes Button */}
@@ -1118,7 +1181,6 @@ function App() {
                                         onClose={() => {
                                             setShowModal(false);
                                             setCurrentResumeView("editor");
-                                            // setVersionV();
                                         }}
                                         onSelect={(
                                             resume: ResumeDataType & {
@@ -1139,31 +1201,6 @@ function App() {
                                         }}
                                         version={versionV}
                                     />
-                                    {/* <ResumeSelectorModal
-                                        open={showModal}
-                                        onClose={() => {
-                                            setShowModal(false);
-                                            setCurrentResumeView("editor");
-                                        }}
-                                        onSelect={(
-                                            resume: ResumeDataType & {
-                                                checkboxStates?: any;
-                                            }
-                                        ) => {
-                                            
-                                            setResumeData(resume); //
-                                            setBaseResume(resume);//
-                                            // Check the loaded resume data and set checkboxes accordingly
-                                            checkLoadedResumeData(resume);
-                                            lockAllSections();
-                                            // Auto-unlock for admin users after selecting a resume
-                                            if (userRole === "admin") {
-                                                checkAdminAndUnlock();
-                                            }
-                                            setShowModal(false);
-                                            setCurrentResumeView("editor");
-                                        }}
-                                    /> */}
 
                                     {/* Other nav buttons */}
                                     <button
@@ -1171,11 +1208,10 @@ function App() {
                                             setCurrentResumeView("editor");
                                             setShowChanges(false);
                                         }}
-                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                            currentResumeView === "editor"
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                        }`}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentResumeView === "editor"
+                                            ? "bg-blue-600 text-white"
+                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                            }`}
                                     >
                                         Resume Editor
                                     </button>
@@ -1190,12 +1226,11 @@ function App() {
                                             if (!optimizedData)
                                                 setShowChanges(false);
                                         }}
-                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                            currentResumeView === "optimized" ||
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentResumeView === "optimized" ||
                                             currentResumeView === "changes"
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                        }`}
+                                            ? "bg-blue-600 text-white"
+                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                            }`}
                                     >
                                         {optimizedData
                                             ? "Optimized Resume"
@@ -1352,16 +1387,54 @@ function App() {
                                             onChange={updateEducation}
                                         />
                                     </>
+                                    <>
+                                        {versionV == 2 ? (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="showPublications"
+                                                        checked={
+                                                            showPublications
+                                                        }
+                                                        onChange={(e) =>
+                                                            setShowPublications(
+                                                                e.target.checked
+                                                            )
+                                                        }
+                                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                                    />
+                                                    <label
+                                                        htmlFor="showPublications"
+                                                        className="text-sm font-medium text-gray-700"
+                                                    >
+                                                        Include Publications
+                                                        section
+                                                    </label>
+                                                </div>
+
+                                                {showPublications && (
+                                                    <Publications
+                                                        data={
+                                                            resumeData.publications
+                                                        }
+                                                        onChange={
+                                                            updatePublications
+                                                        }
+                                                    />
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </>
 
                                     {/* Save Button - Also lock this */}
 
                                     <button
                                         onClick={handleSave}
-                                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md transition-colors font-medium ${
-                                            isSaved
-                                                ? "bg-green-600 text-white"
-                                                : "bg-blue-600 text-white hover:bg-blue-700"
-                                        }`}
+                                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md transition-colors font-medium ${isSaved
+                                            ? "bg-green-600 text-white"
+                                            : "bg-blue-600 text-white hover:bg-blue-700"
+                                            }`}
                                     >
                                         {isSaved ? (
                                             <Check size={18} />
@@ -1389,13 +1462,23 @@ function App() {
                                         This will clear all your data and start
                                         fresh
                                     </p>
-                                    <button
-                                        onClick={handleV1Resume}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium mt-2"
-                                    >
-                                        <RotateCcw size={18} />
-                                        Save to V1 Resume
-                                    </button>
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={handleV1Resume}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium mt-2"
+                                        >
+                                            <LucideSaveAll size={18} />
+                                            Save to V1 Resume
+                                        </button>
+                                        <button
+                                            onClick={handleV2Resume}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium mt-2"
+                                        >
+                                            <LucideSaveAll size={18} />
+                                            Save to Medical Resume
+                                        </button>
+                                    </div>
+
                                     <p>
                                         saves a new resume of this resume to V1
                                         resume template
@@ -1436,12 +1519,11 @@ function App() {
                                             isOptimizing ||
                                             !jobDescription.trim()
                                         }
-                                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md transition-colors font-medium ${
-                                            isOptimizing ||
+                                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md transition-colors font-medium ${isOptimizing ||
                                             !jobDescription.trim()
-                                                ? "bg-gray-400 text-white cursor-not-allowed"
-                                                : "bg-purple-600 text-white hover:bg-purple-700"
-                                        }`}
+                                            ? "bg-gray-400 text-white cursor-not-allowed"
+                                            : "bg-purple-600 text-white hover:bg-purple-700"
+                                            }`}
                                     >
                                         {isOptimizing ? (
                                             <>
@@ -1487,20 +1569,23 @@ function App() {
                                                 ? "Resume Preview (Admin View)"
                                                 : "Live Resume Preview"}
                                         </h2>
-                                        <button
-                                            onClick={handlePrint}
-                                            style={{ display: "none" }}
-                                            className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors text-sm"
-                                        >
-                                            Print Resume
-                                        </button>
+                                        {versionV === 2 && (
+                                            <button
+                                                onClick={handlePrint}
+                                                // style={{ display: "none" }}
+                                                className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors text-sm"
+                                            >
+                                                Print Resume
+                                            </button>
+                                        )}
                                     </div>
-                                    {versionV == 0 ? (
+                                    {versionV === 0 ? (
                                         <ResumePreview
                                             data={resumeData}
                                             showLeadership={showLeadership}
                                             showProjects={showProjects}
                                             showSummary={showSummary}
+                                            // showPublications={showPublications}
                                             showChanges={userRole !== "admin"}
                                             changedFields={
                                                 userRole === "admin"
@@ -1508,7 +1593,9 @@ function App() {
                                                     : changedFields
                                             }
                                         />
-                                    ) : (
+                                    ) : null}
+
+                                    {versionV === 1 ? (
                                         <ResumePreview1
                                             data={resumeData}
                                             showLeadership={showLeadership}
@@ -1521,7 +1608,23 @@ function App() {
                                                     : changedFields
                                             }
                                         />
-                                    )}
+                                    ) : null}
+
+                                    {versionV === 2 ? (
+                                        <ResumePreviewMedical
+                                            data={resumeData}
+                                            showLeadership={showLeadership}
+                                            showProjects={showProjects}
+                                            showSummary={showSummary}
+                                            showPublications={showPublications}
+                                            showChanges={userRole !== "admin"}
+                                            changedFields={
+                                                userRole === "admin"
+                                                    ? new Set()
+                                                    : changedFields
+                                            }
+                                        />
+                                    ) : null}
                                     {/* <ResumePreview
                                         data={resumeData}
                                         showLeadership={showLeadership}
@@ -1692,6 +1795,43 @@ function App() {
                                                             updateOptimizedEducation
                                                         }
                                                     />
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <input
+                                                                type="checkbox"
+                                                                id="showOptimizedPublications"
+                                                                checked={
+                                                                    showPublications
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setShowPublications(
+                                                                        e.target
+                                                                            .checked
+                                                                    )
+                                                                }
+                                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                                            />
+                                                            <label
+                                                                htmlFor="showOptimizedPublications"
+                                                                className="text-sm font-medium text-gray-700"
+                                                            >
+                                                                Include
+                                                                Publications
+                                                                section
+                                                            </label>
+                                                        </div>
+
+                                                        {showPublications && (
+                                                            <Publications
+                                                                data={
+                                                                    optimizedData.publications
+                                                                }
+                                                                onChange={
+                                                                    updateOptimizedPublications
+                                                                }
+                                                            />
+                                                        )}
+                                                    </div>
 
                                                     {/* Save Optimized Button */}
                                                     <button
@@ -1731,26 +1871,55 @@ function App() {
                                                 <h2 className="text-lg font-semibold text-gray-800">
                                                     Optimized Resume Preview
                                                 </h2>
-                                                <button
-                                                    onClick={handlePrint}
-                                                    style={{ display: "none" }}
-                                                    className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors text-sm"
-                                                >
-                                                    Print Resume
-                                                </button>
+                                                {versionV === 2 && (
+                                            <button
+                                                onClick={handlePrint}
+                                                // style={{ display: "none" }}
+                                                className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors text-sm"
+                                            >
+                                                Print Resume
+                                            </button>
+                                        )}
                                             </div>
                                             {optimizedData && (
-                                                <ResumePreview
-                                                    data={optimizedData}
-                                                    showLeadership={
-                                                        showLeadership
-                                                    }
-                                                    showProjects={showProjects}
-                                                    showSummary={showSummary}
-                                                    showChanges={false}
-                                                    changedFields={new Set()}
-                                                />
+                                                <>
+                                                    {versionV === 0 && (
+                                                        <ResumePreview
+                                                            data={optimizedData}
+                                                            showLeadership={showLeadership}
+                                                            showProjects={showProjects}
+                                                            showSummary={showSummary}
+                                                            showPublications={showPublications}
+                                                            showChanges={false}
+                                                            changedFields={new Set()}
+                                                        />
+                                                    )}
+
+                                                    {versionV === 1 && (
+                                                        <ResumePreview1
+                                                            data={optimizedData}
+                                                            showLeadership={showLeadership}
+                                                            showProjects={showProjects}
+                                                            showSummary={showSummary}
+                                                            showChanges={false}
+                                                            changedFields={new Set()}
+                                                        />
+                                                    )}
+
+                                                    {versionV === 2 && (
+                                                        <ResumePreviewMedical
+                                                            data={optimizedData}
+                                                            showLeadership={showLeadership}
+                                                            showProjects={showProjects}
+                                                            showSummary={showSummary}
+                                                            showPublications={showPublications}
+                                                            showChanges={false}
+                                                            changedFields={new Set()}
+                                                        />
+                                                    )}
+                                                </>
                                             )}
+
                                         </div>
                                     </div>
                                 </div>
@@ -1778,28 +1947,14 @@ function App() {
                                         <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
                                             Original Base Resume
                                         </h3>
-                                        <ResumePreview
+                                        {/* <ResumePreview
                                             data={baseResume}
                                             showLeadership={showLeadership}
                                             showProjects={showProjects}
                                             showSummary={showSummary}
+                                            showPublications={showPublications}
                                             showChanges={false}
                                             changedFields={new Set()}
-                                        />
-                                    </div>
-
-                                    {/* Current Resume */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                                            Current Resume
-                                        </h3>
-                                        {/* <ResumePreview
-                                            data={resumeData}
-                                            showLeadership={showLeadership}
-                                            showProjects={showProjects}
-                                            showSummary={showSummary}
-                                            showChanges={true}
-                                            changedFields={changedFields}
                                         /> */}
                                         {versionV == 0 ? (
                                             <ResumePreview
@@ -1807,10 +1962,52 @@ function App() {
                                                 showLeadership={showLeadership}
                                                 showProjects={showProjects}
                                                 showSummary={showSummary}
+                                                // showPublications={
+                                                //     showPublications
+                                                // }
+                                                showChanges={false}
+                                                changedFields={new Set()}
+                                            />
+                                        ) : null}
+                                        {versionV == 1 ? (
+                                            <ResumePreview1
+                                                data={resumeData}
+                                                showLeadership={showLeadership}
+                                                showProjects={showProjects}
+                                                showChanges={false}
+                                                changedFields={new Set()}
+                                            />
+                                        ) : null}
+                                        {versionV == 2 ? (
+                                            <ResumePreviewMedical
+                                                data={resumeData}
+                                                showLeadership={showLeadership}
+                                                showProjects={showProjects}
+                                                showChanges={false}
+                                                changedFields={new Set()}
+                                            />
+                                        ) : null}
+                                    </div>
+
+                                    {/* Current Resume */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                                            Current Resume
+                                        </h3>
+                                        {versionV == 0 ? (
+                                            <ResumePreview
+                                                data={resumeData}
+                                                showLeadership={showLeadership}
+                                                showProjects={showProjects}
+                                                showSummary={showSummary}
+                                                // showPublications={
+                                                //     showPublications
+                                                // }
                                                 showChanges={true}
                                                 changedFields={changedFields}
                                             />
-                                        ) : (
+                                        ) : null}
+                                        {versionV == 1 ? (
                                             <ResumePreview1
                                                 data={resumeData}
                                                 showLeadership={showLeadership}
@@ -1818,7 +2015,16 @@ function App() {
                                                 showChanges={false}
                                                 changedFields={changedFields}
                                             />
-                                        )}
+                                        ) : null}
+                                        {versionV == 2 ? (
+                                            <ResumePreviewMedical
+                                                data={resumeData}
+                                                showLeadership={showLeadership}
+                                                showProjects={showProjects}
+                                                showChanges={false}
+                                                changedFields={changedFields}
+                                            />
+                                        ) : null}
                                     </div>
                                 </div>
                             </div>
@@ -1850,43 +2056,79 @@ function App() {
                 </div> */}
                 <div className="hidden print:block">
                     {currentResumeView === "optimized" && optimizedData ? (
-                        versionV === 0 ? (
-                            <ResumePreview
-                                data={optimizedData}
-                                showLeadership={showLeadership}
-                                showProjects={showProjects}
-                                showSummary={showSummary}
-                                showChanges={false}
-                                changedFields={new Set()}
-                            />
-                        ) : (
-                            <ResumePreview1
-                                data={optimizedData}
-                                showLeadership={showLeadership}
-                                showProjects={showProjects}
-                                showSummary={showSummary}
-                                showChanges={false}
-                                changedFields={new Set()}
-                            />
-                        )
-                    ) : versionV === 0 ? (
-                        <ResumePreview
-                            data={resumeData}
-                            showLeadership={showLeadership}
-                            showProjects={showProjects}
-                            showSummary={showSummary}
-                            showChanges={false}
-                            changedFields={new Set()}
-                        />
+                        <>
+                            {versionV === 0 ? (
+                                <ResumePreview
+                                    data={optimizedData}
+                                    showLeadership={showLeadership}
+                                    showProjects={showProjects}
+                                    showSummary={showSummary}
+                                    // showPublications={showPublications}
+                                    showChanges={false}
+                                    changedFields={new Set()}
+                                />
+                            ) : null}
+
+                            {versionV === 1 ? (
+                                <ResumePreview1
+                                    data={optimizedData}
+                                    showLeadership={showLeadership}
+                                    showProjects={showProjects}
+                                    showSummary={showSummary}
+                                    showChanges={false}
+                                    changedFields={new Set()}
+                                />
+                            ) : null}
+
+                            {versionV === 2 ? (
+                                <ResumePreviewMedical
+                                    data={optimizedData}
+                                    showLeadership={showLeadership}
+                                    showProjects={showProjects}
+                                    showSummary={showSummary}
+                                    showPublications={showPublications}
+                                    showChanges={false}
+                                    changedFields={new Set()}
+                                />
+                            ) : null}
+                        </>
                     ) : (
-                        <ResumePreview1
-                            data={resumeData}
-                            showLeadership={showLeadership}
-                            showProjects={showProjects}
-                            showSummary={showSummary}
-                            showChanges={false}
-                            changedFields={new Set()}
-                        />
+                        <>
+                            {versionV === 0 ? (
+                                <ResumePreview
+                                    data={resumeData}
+                                    showLeadership={showLeadership}
+                                    showProjects={showProjects}
+                                    showSummary={showSummary}
+                                    // showPublications={showPublications}
+                                    showChanges={false}
+                                    changedFields={new Set()}
+                                />
+                            ) : null}
+
+                            {versionV === 1 ? (
+                                <ResumePreview1
+                                    data={resumeData}
+                                    showLeadership={showLeadership}
+                                    showProjects={showProjects}
+                                    showSummary={showSummary}
+                                    showChanges={false}
+                                    changedFields={new Set()}
+                                />
+                            ) : null}
+
+                            {versionV === 2 ? (
+                                <ResumePreviewMedical
+                                    data={resumeData}
+                                    showLeadership={showLeadership}
+                                    showProjects={showProjects}
+                                    showSummary={showSummary}
+                                    showPublications={showPublications}
+                                    showChanges={false}
+                                    changedFields={new Set()}
+                                />
+                            ) : null}
+                        </>
                     )}
                 </div>
             </div>

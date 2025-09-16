@@ -4,6 +4,7 @@ import { Home, Briefcase, FileText, User, LogOut, ChevronDown, Edit2Icon, User2I
 import { UserContext } from '../state_management/UserContext.tsx';
 import { useUserProfile } from "../state_management/ProfileContext";
 import { useOperationsStore } from "../state_management/Operations.ts";
+import { toastUtils, toastMessages } from '../utils/toast';
 
 interface NavigationProps {
   activeTab: string;
@@ -44,6 +45,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, setUser
       // localStorage.clear();
       localStorage.removeItem("userAuth");
       // setUser("");
+      toastUtils.success("Switching to operations view...");
       navigate("/manage");
   };
 
@@ -67,6 +69,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, setUser
   const handleLogout = () => {
     localStorage.clear();
     setUser('');
+    toastUtils.success(toastMessages.logoutSuccess);
     navigate('/login');
   };
 
@@ -228,7 +231,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, setUser
                                                   className="flex items-center space-x-3 w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                                               >
                                                   <LogOut className="w-4 h-4" />
-                                                  <span>Switch user</span>
+                                                  <span>Switch Client</span>
                                               </button>
                                           </div>
                                       ) : (

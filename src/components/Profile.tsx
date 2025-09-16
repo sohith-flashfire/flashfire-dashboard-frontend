@@ -4,6 +4,7 @@ import { useUserProfile, UserProfile } from "../state_management/ProfileContext"
 import { UserContext } from "../state_management/UserContext";
 import { Link } from "react-router-dom";
 import { useOperationsStore } from "../state_management/Operations";
+import { toastUtils, toastMessages } from "../utils/toast";
 
 const SECTIONS = [
   { key: "personal", label: "Personal", icon: CreditCard },
@@ -150,12 +151,17 @@ function FileUploadRow({
 
     setIsUploading(true);
     setUploadError(null);
+    const loadingToast = toastUtils.loading(toastMessages.uploadingFile);
 
     try {
       const uploadedUrl = await uploadFileToBackend(file);
       onFileChange(uploadedUrl);
+      toastUtils.dismissToast(loadingToast);
+      toastUtils.success(toastMessages.fileUploaded);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Upload failed");
+      toastUtils.dismissToast(loadingToast);
+      toastUtils.error(toastMessages.fileUploadError);
     } finally {
       setIsUploading(false);
     }
@@ -299,9 +305,11 @@ export default function ProfilePage({
       // Require hardcoded key for saving
       const userKey = prompt("Enter the edit key to save changes:");
       if (userKey !== "flashfire2025") {
-        alert("Incorrect edit key. Changes not saved.");
+        toastUtils.error("Incorrect edit key. Changes not saved.");
         return;
       }
+
+      const loadingToast = toastUtils.loading(toastMessages.updatingProfile);
 
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
       const token = ctx?.token;
@@ -329,10 +337,11 @@ export default function ProfilePage({
       updateProfile(editData);
       setEditingSection(null);
       setEditData({});
-      alert("Profile updated successfully!");
+      toastUtils.dismissToast(loadingToast);
+      toastUtils.success(toastMessages.profileUpdated);
     } catch (error: any) {
       console.error("Profile update error:", error);
-      alert(error.message || "Failed to update profile");
+      toastUtils.error(toastMessages.profileError);
     }
   };
 
@@ -352,23 +361,32 @@ export default function ProfilePage({
   const [emailOfOperations, setEmailOfOperations] = useState("");
   const [loading, setLoading] = useState(false);
    const handleAddMember = async () => {
-       if (!emailOfOperations) {
-           alert("Please enter an email address");
-           return;
-       }
+      const operatorEmail = emailOfOperations.trim();
+      if (!operatorEmail || !operatorEmail.includes("@")) {
+          toastUtils.error("Please enter a valid email address");
+          return;
+      }
 
+    //   const userId = (data as any).userId;
+    //   if (!userId) {
+    //       toastUtils.error("User ID not available. Please reload or re-login.");
+    //       return;
+    //   }
+ 
+       let loadingToast: any = null;
        try {
            setLoading(true);
-           const Api = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
+           loadingToast = toastUtils.loading("Adding team member...");
+           const Api = import.meta.env.VITE_API_BASE_URL || "http://localhost:8086";
+           console.log("data ::", data.email);
            const res = await fetch(`${Api}/admin/assignUserToOperations`, {
                method: "POST",
                headers: {
                    "Content-Type": "application/json",
                },
                body: JSON.stringify({
-                   userId: data._id,
-                   operatorEmail: emailOfOperations,
+                   userId : ctx?.userDetails?.email,
+                   operatorEmail,
                }),
            });
 
@@ -378,12 +396,20 @@ export default function ProfilePage({
                throw new Error(result.error || "Failed to add team member");
            }
 
-           alert("✅ " + (result.message || "Team member added successfully!"));
+           toastUtils.success(result.message || "Team member added successfully!");
            setEmailOfOperations("");
            setOpen(false);
        } catch (err: any) {
-           alert("❌ " + err.message);
+           toastUtils.error(err.message);
        } finally {
+           try {
+               // Dismiss loading toast in both success and error cases
+               // (only if it was created successfully)
+               // @ts-ignore
+               if (typeof loadingToast !== 'undefined' && loadingToast) {
+                   toastUtils.dismissToast(loadingToast);
+               }
+           } catch {}
            setLoading(false);
        }
    };

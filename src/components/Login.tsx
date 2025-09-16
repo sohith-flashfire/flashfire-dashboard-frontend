@@ -5,6 +5,7 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight, CheckCircle,TrendingUp, Users, Awa
 import { UserContext } from "../state_management/UserContext";
 import { useUserProfile } from "../state_management/ProfileContext";
 import { useOperationsStore } from "../state_management/Operations";
+import { toastUtils, toastMessages } from "../utils/toast";
 // import {userP}
 // import { GoogleLogin } from '@react-oauth/google';
 
@@ -82,9 +83,14 @@ const statsData = [
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (Object.keys(errs).length > 0) {
+      toastUtils.error(toastMessages.validationError);
+      return;
+    }
 
     setIsLoading(true);
+    const loadingToast = toastUtils.loading(toastMessages.loggingIn);
+    
     try {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const loginEndpoint = email.toLowerCase().includes("@flashfirehq")
@@ -106,8 +112,12 @@ const statsData = [
                     setEmailOperations(data.user.email);
                     setRole(data.user.role);
                     setManagedUsers(data.user.managedUsers);
+                    toastUtils.dismissToast(loadingToast);
+                    toastUtils.success("Welcome to Operations Dashboard!");
                     navigate("/manage");
                 } else {
+                    toastUtils.dismissToast(loadingToast);
+                    toastUtils.error(data?.message || toastMessages.loginError);
                 }
             } else {
               const data: LoginResponse = await res.json();
@@ -127,14 +137,20 @@ const statsData = [
                           userProfile: data?.userProfile,
                       })
                   );
+                  toastUtils.dismissToast(loadingToast);
+                  toastUtils.success(toastMessages.loginSuccess);
                   navigate("/"); // Switch to dashboard tab
               } else {
                   setData({});
+                  toastUtils.dismissToast(loadingToast);
+                  toastUtils.error(data?.message || toastMessages.loginError);
               }
             }
       
     } catch (err) {
       console.error(err);
+      toastUtils.dismissToast(loadingToast);
+      toastUtils.error(toastMessages.networkError);
     } finally {
       setIsLoading(false);
     }

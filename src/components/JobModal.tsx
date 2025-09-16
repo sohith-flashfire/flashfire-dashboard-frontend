@@ -23,6 +23,8 @@ const AttachmentsModal = lazy(() => import("./AttachmentsModal"));
 import ResumeChangesComparison from "./ResumeChangesComparison.tsx";
 import { useOperationsStore } from "../state_management/Operations.ts";
 import { useResumeStore } from "./AiOprimizer/store/useResumeStore.ts";
+import { toastUtils, toastMessages } from "../utils/toast";
+import { getOptimizedResumeUrl, getOptimizedResumeTitle } from "../utils/getOptimizedResumeUrl";
 
 
 /* ---------- ENV ---------- */
@@ -359,7 +361,14 @@ useEffect(() => {
     }
   };
 
-  const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toastUtils.success("Link copied to clipboard!");
+    } catch (error) {
+      toastUtils.error("Failed to copy link");
+    }
+  };
 
   /* ---------- Upload handlers (kept; not used in paste flow) ---------- */
   const handleImgUpload = async () => {
@@ -542,9 +551,37 @@ useEffect(() => {
                 </div>
 
                 {hasResumeForJob ? (
-                  <div className="mt-1 flex items-center gap-2 text-sm text-green-700">
-                    <Check className="w-4 h-4" />
-                    <span>Resume already uploaded for this job</span>
+                  <div className="mt-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <Check className="w-4 h-4" />
+                        <span>Resume already uploaded for this job</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const resumeUrl = getOptimizedResumeUrl(jobDetails?.jobID, jobDetails?.companyName);
+                          const resumeTitle = getOptimizedResumeTitle(jobDetails?.jobID, jobDetails?.companyName);
+                          if (resumeUrl) {
+                            window.open(resumeUrl, '_blank');
+                            toastUtils.success(resumeTitle ? `Opening "${resumeTitle}" in new tab...` : "Opening resume in new tab...");
+                          } else {
+                            toastUtils.error("Resume URL not found");
+                          }
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Visit Resume
+                      </button>
+                    </div>
+                    {(() => {
+                      const resumeTitle = getOptimizedResumeTitle(jobDetails?.jobID, jobDetails?.companyName);
+                      return resumeTitle ? (
+                        <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border">
+                          <strong>Resume:</strong> {resumeTitle}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 ) : (
                   <>
@@ -650,20 +687,28 @@ useEffect(() => {
 
       case "description":
         return (
-          <div className="space-y-4">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Job Description</h4>
-              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                {jobDetails?.jobDescription ? (
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {jobDetails.jobDescription}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 italic text-sm">No job description available.</p>
-                )}
-              </div>
+            <div className="space-y-4">
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                        Job Description
+                    </h4>
+                    <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                        {jobDetails?.jobDescription ? (
+                            <div
+                                className="text-sm text-gray-700 leading-relaxed job-description-html"
+                                // Correctly render the HTML from the backend
+                                dangerouslySetInnerHTML={{
+                                    __html: jobDetails.jobDescription,
+                                }}
+                            ></div>
+                        ) : (
+                            <p className="text-gray-500 italic text-sm">
+                                No job description available.
+                            </p>
+                        )}
+                    </div>
+                </div>
             </div>
-          </div>
         );
 
       case "attachments":
@@ -683,9 +728,37 @@ useEffect(() => {
   </div>
 
   {hasResumeForJob ? (
-    <div className="mt-1 flex items-center gap-2 text-sm text-green-700">
-      <Check className="w-4 h-4" />
-      <span>Resume already uploaded for this job</span>
+    <div className="mt-1 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-green-700">
+          <Check className="w-4 h-4" />
+          <span>Resume already uploaded for this job</span>
+        </div>
+        <button
+          onClick={() => {
+            const resumeUrl = getOptimizedResumeUrl(jobDetails?.jobID, jobDetails?.companyName);
+            const resumeTitle = getOptimizedResumeTitle(jobDetails?.jobID, jobDetails?.companyName);
+            if (resumeUrl) {
+              window.open(resumeUrl, '_blank');
+              toastUtils.success(resumeTitle ? `Opening "${resumeTitle}" in new tab...` : "Opening resume in new tab...");
+            } else {
+              toastUtils.error("Resume URL not found");
+            }
+          }}
+          className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Visit Resume
+        </button>
+      </div>
+      {(() => {
+        const resumeTitle = getOptimizedResumeTitle(jobDetails?.jobID, jobDetails?.companyName);
+        return resumeTitle ? (
+          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border">
+            <strong>Resume:</strong> {resumeTitle}
+          </div>
+        ) : null;
+      })()}
     </div>
   ) : (
     <>

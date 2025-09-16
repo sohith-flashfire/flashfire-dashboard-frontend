@@ -4,6 +4,7 @@ import { Job, JobStatus } from "../types";
 import { UserContext } from "../state_management/UserContext";
 import { useNavigate } from "react-router-dom";
 import { useOperationsStore } from "../state_management/Operations";
+import { toastUtils, toastMessages } from "../utils/toast";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -195,11 +196,13 @@ const JobForm: React.FC<JobFormProps> = ({ job, onCancel, onSuccess, setUserJobs
 
     if (!isEditMode && (!formData.jobTitle.trim() || !formData.companyName.trim())) {
       setError("Job Title and Company Name are required.");
+      toastUtils.error(toastMessages.validationError);
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
+    const loadingToast = toastUtils.loading(toastMessages.savingJob);
 
     // ---------- CREATE MODE ----------
     if (!isEditMode) {
@@ -227,6 +230,8 @@ const JobForm: React.FC<JobFormProps> = ({ job, onCancel, onSuccess, setUserJobs
       const closeTimer = setTimeout(() => {
         // optimistic UI add (top) then close
         setUserJobs((prev) => [optimisticJob, ...(prev || [])]);
+        toastUtils.dismissToast(loadingToast);
+        toastUtils.success(toastMessages.jobAdded);
         onSuccess?.();
         onCancel();
         setIsSubmitting(false);
@@ -257,6 +262,8 @@ const JobForm: React.FC<JobFormProps> = ({ job, onCancel, onSuccess, setUserJobs
         // If duplicate within 1s -> keep form open and show the message
         if (status === 403 || body?.message === "Job Already Exist !") {
           clearTimeout(closeTimer);
+          toastUtils.dismissToast(loadingToast);
+          toastUtils.error(body.message || "Job already exists!");
           setIsSubmitting(false);
           setError(body.message);
           return;
@@ -278,6 +285,8 @@ const JobForm: React.FC<JobFormProps> = ({ job, onCancel, onSuccess, setUserJobs
           }
           
           console.log('Token refresh failed, clearing storage and redirecting to login');
+          toastUtils.dismissToast(loadingToast);
+          toastUtils.error(toastMessages.unauthorizedError);
           localStorage.clear();
           navigate("/login");
           return;
@@ -312,12 +321,18 @@ const JobForm: React.FC<JobFormProps> = ({ job, onCancel, onSuccess, setUserJobs
           console.error("Backend request failed:", body);
           setUserJobs((prev) => prev.filter(job => job.jobID !== optimisticId));
           clearTimeout(closeTimer);
+          toastUtils.dismissToast(loadingToast);
+          toastUtils.error(toastMessages.jobError);
           setIsSubmitting(false);
           setError("Failed to save job. Please try again.");
         }
       } catch (err) {
         // Network or unexpected error: if the form hasn't closed yet, let the gate close it.
         console.error("[create quick] error:", err);
+        if (!closed) {
+          toastUtils.dismissToast(loadingToast);
+          toastUtils.error(toastMessages.networkError);
+        }
       }
 
       return; // end create mode
@@ -326,6 +341,8 @@ const JobForm: React.FC<JobFormProps> = ({ job, onCancel, onSuccess, setUserJobs
     // ---------- EDIT MODE (unchanged: immediate close; background persist) ----------
     if (isEditMode && job) {
       // close immediately
+      toastUtils.dismissToast(loadingToast);
+      toastUtils.success(toastMessages.jobUpdated);
       onSuccess?.();
       onCancel();
       setIsSubmitting(false);

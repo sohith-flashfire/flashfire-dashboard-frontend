@@ -17,14 +17,16 @@ interface ResumeStore {
      currentView: "editor" | "optimized" | "changes";
      showChanges: boolean;
      changedFields: Set<string>;
-
+     showPublications : boolean;
+     
      // actions
-
+     
      setResumeData: (data: ResumeDataType) => void;
      setBaseResume: (data: ResumeDataType) => void;
      setShowLeadership: (value: boolean) => void;
      setShowProjects: (value: boolean) => void;
      setShowSummary: (value: boolean) => void;
+     setShowPublications : (value : boolean) => void;
      setIsSaved: (value: boolean) => void;
      setJobDescription: (value: string) => void;
      setIsOptimizing: (value: boolean) => void;
@@ -56,9 +58,10 @@ export const useResumeStore = create<ResumeStore>()(
                currentView: "editor",
                showChanges: false,
                changedFields: new Set(),
+               showPublications: false,
+               
 
-
-
+               setShowPublications: (value) => set({ showPublications: value }),
                setResumeData: (data) => set({ resumeData: data }),
                setBaseResume: (data) => set({ baseResume: data }),
                setShowLeadership: (value) => set({ showLeadership: value }),
@@ -85,6 +88,7 @@ export const useResumeStore = create<ResumeStore>()(
                          showProjects: false, // Will be set based on database check
                          showSummary: false, // Will be set based on database check
                          isSaved: false,
+                         showPublications : false,
                          jobDescription: "",
                          isOptimizing: false,
                          optimizedData: null,

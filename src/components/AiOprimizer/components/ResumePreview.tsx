@@ -51,6 +51,10 @@ interface ResumeData {
         duration: string;
         additionalInfo: string;
     }>;
+    publications: Array<{
+        id: string;
+        details: string;
+    }>;
 }
 
 interface ResumePreviewProps {
@@ -58,9 +62,10 @@ interface ResumePreviewProps {
     showLeadership?: boolean;
     showProjects?: boolean;
     showSummary?: boolean;
+    showPublications?: boolean; // Added for Publications section
     showChanges?: boolean;
     changedFields?: Set<string>;
-    onDownloadClick?: () => void;
+    onDownloadClick?: () => void; // Add this prop to handle download clicks
 }
 
 export const ResumePreview: React.FC<ResumePreviewProps> = ({
@@ -68,6 +73,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
     showLeadership = true,
     showProjects = false,
     showSummary = true,
+    showPublications = false, 
     showChanges = false,
     changedFields = new Set(),
     onDownloadClick,
@@ -76,102 +82,278 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
     const [showWarningModal, setShowWarningModal] = useState(false);
     const measureRef = useRef<HTMLDivElement>(null);
 
-    // Enhanced print function with automatic settings from ResumePreview1
+    // Enhanced print function with automatic settings
     const handlePrint = () => {
+        // Show warning modal first
         setShowWarningModal(true);
     };
 
     // Function to handle actual printing after user confirms
-    const handlePrintConfirm = () => {
-        setShowWarningModal(false);
+//     const handlePrintConfirm = () => {
+//         setShowWarningModal(false);
 
-        const originalTitle = document.title;
-        document.title = `${data.personalInfo.name || "Resume"}_Resume`;
+//         // Store original title
+//         const originalTitle = document.title;
 
-        const printStyle = document.createElement("style");
-        printStyle.innerHTML = `
-            @media print {
-                body {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                    color-adjust: exact !important;
-                    height: 100vh !important;
-                    max-height: 100vh !important;
-                    overflow: hidden !important;
-                }
+//         // Set document title for the PDF filename
+//         document.title = `${data.personalInfo.name || "Resume"}_Resume`;
 
-                @page {
-                    size: letter !important;
-                    margin: 0 !important;
-                }
+//         // Create a style element for print-specific settings
+//         const printStyle = document.createElement("style");
+//         printStyle.innerHTML = `
+//   @media print {
+//     body {
+//       margin: 0 !important;
+//       padding: 0 !important;
+//       -webkit-print-color-adjust: exact !important;
+//       print-color-adjust: exact !important;
+//       color-adjust: exact !important;
+//       height: auto !important;
+//       max-height: none !important;
+//       overflow: visible !important;
+//     }
 
-                #resume-print-only {
-                    display: flex !important;
-                    flex-direction: column !important;
-                    font-family: "Times New Roman", Times, serif !important;
-                    font-size: 11px !important;
-                    font-weight: 500;
-                    line-height: 1.25 !important;
-                    letter-spacing: 0.1px !important;
-                    color: #000 !important;
-                    width: 100% !important;
-                    height: 100vh !important;
-                    max-height: 100vh !important;
-                    overflow: hidden !important;
-                    padding: 0.5in 0.6in !important;
-                    box-sizing: border-box !important;
-                    page-break-inside: avoid !important;
-                    page-break-before: avoid !important;
-                    page-break-after: avoid !important;
-                }
+//     @page {
+//       size: letter !important;
+//       margin: 0 !important;
+//     }
 
-                * {
-                    page-break-before: avoid !important;
-                    page-break-after: avoid !important;
-                    page-break-inside: avoid !important;
-                    break-inside: avoid !important;
-                }
-            }
-        `;
+//     #resume-print-only {
+//       display: flex !important;
+//       flex-direction: column !important;
+//       font-family: "Times New Roman", Times, serif !important;
+//       font-size: ${styles.fontSize} !important;
+//       line-height: ${styles.lineHeight} !important;
+//       letter-spacing: -0.025em !important;
+//       color: #000 !important;
+//       width: 100% !important;
+//       height: auto !important;
+//       min-height: auto !important;
+//       max-height: none !important;
+//       overflow: visible !important;
+//       padding: 0.2in 0.5in 0.3in 0.5in !important;
+//       box-sizing: border-box !important;
+//       page-break-inside: auto !important;
+//       page-break-before: auto !important;
+//       page-break-after: auto !important;
+//     }
 
-        document.head.appendChild(printStyle);
+//     /* Allow natural spacing between sections */
+//     #resume-print-only > div {
+//       margin-bottom: 12px !important;
+//     }
 
-        setTimeout(() => {
-            window.print();
-            setTimeout(() => {
-                document.title = originalTitle;
-                document.head.removeChild(printStyle);
-            }, 1000);
-        }, 100);
+//     /* Allow page breaks for long content */
+//     * {
+//       page-break-before: auto !important;
+//       page-break-after: auto !important;
+//       page-break-inside: auto !important;
+//       break-inside: auto !important;
+//     }
 
-        if (onDownloadClick) {
-            onDownloadClick();
-        }
-    };
+//     /* Prevent breaking within individual items */
+//     .work-experience-item,
+//     .project-item,
+//     .education-item {
+//       page-break-inside: avoid !important;
+//       break-inside: avoid !important;
+//     }
+//   }
+// `;
 
-    const showPrintInstructions = () => {
-        alert(`Print Settings Instructions:
+//         document.head.appendChild(printStyle);
+
+//         // Function to automatically set print dialog settings
+//         const setupPrintDialog = () => {
+//             // Store original print function
+//             const originalPrint = window.print;
+            
+//             // Override the print function
+//             window.print = function() {
+//                 // Try to use the modern Print API if available
+//                 if (navigator.userAgent.includes('Chrome') && window.chrome && window.chrome.runtime) {
+//                     try {
+//                         // For Chrome, try to use the Print API
+//                         if (window.chrome.runtime.getManifest) {
+//                             // This would require a Chrome extension
+//                             console.log('Chrome extension required for automatic print settings');
+//                         }
+//                     } catch (error) {
+//                         console.log('Chrome Print API not available:', error);
+//                     }
+//                 }
+                
+//                 // Fallback to standard print with enhanced CSS
+//                 const enhancedPrintStyle = document.createElement("style");
+//                 enhancedPrintStyle.innerHTML = `
+//                     @media print {
+//                         @page {
+//                             size: letter !important;
+//                             margin: 0.2in 0.5in 0.5in 0.5in !important;
+//                         }
+                        
+//                         body {
+//                             margin: 0 !important;
+//                             padding: 0 !important;
+//                             -webkit-print-color-adjust: exact !important;
+//                             print-color-adjust: exact !important;
+//                         }
+                        
+//                         #resume-print-only {
+//                             display: block !important;
+//                             width: 100% !important;
+//                             height: auto !important;
+//                             overflow: visible !important;
+//                             page-break-inside: auto !important;
+//                         }
+                        
+//                         /* Force content to start immediately */
+//                         #resume-print-only > *:first-child {
+//                             margin-top: 0 !important;
+//                             padding-top: 0 !important;
+//                         }
+//                     }
+//                 `;
+                
+//                 document.head.appendChild(enhancedPrintStyle);
+                
+//                 // Call original print
+//                 originalPrint.call(this);
+                
+//                 // Cleanup enhanced styles after print
+//                 setTimeout(() => {
+//                     if (document.head.contains(enhancedPrintStyle)) {
+//                         document.head.removeChild(enhancedPrintStyle);
+//                     }
+//                 }, 1000);
+//             };
+//         };
+
+//         // Setup the print dialog override
+//         setupPrintDialog();
+
+//         // Small delay to ensure styles are applied
+//         setTimeout(() => {
+//             // Open print dialog
+//             window.print();
+
+//             // Cleanup: restore original title and remove print styles
+//             setTimeout(() => {
+//                 document.title = originalTitle;
+//                 document.head.removeChild(printStyle);
+//                 // Restore original print function
+//                 window.print = window.print;
+//             }, 1000);
+//         }, 100);
+
+//         // Call the optional callback
+//         if (onDownloadClick) {
+//             onDownloadClick();
+//         }
+//     };
+
+const handlePrintConfirm = () => {
+    setShowWarningModal(false);
+  
+    // store original document title and set custom print title
+    const originalTitle = document.title;
+    document.title = `${data.personalInfo.name || "Resume"}_Resume`;
+  
+    // create a print style block (keeps your existing print rules but scoped)
+    const printStyle = document.createElement("style");
+    printStyle.id = "resume-temp-print-style";
+    printStyle.innerHTML = `
+      @media print {
+        @page { size: letter; margin: 0 0.2in 0.2in 0.2in; }
+        html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
         
-When the print dialog opens, please set:
-• Destination: Save as PDF (or your preferred printer)
-• Pages: 1 (or "All" if you prefer)
-• Scale: 105% (custom)
-• Pages per sheet: 1
-• Margins: None (or Minimum)
+        body.printing-resume > :not(#temp-resume-print-wrapper) { display: none !important; }
+        #temp-resume-print-wrapper { display: block !important; width: 100% !important; }
+        #temp-resume-print-wrapper #resume-print-only { display: block !important; visibility: visible !important; }
+      }
+      /* also hide non-print content while we call window.print on screen to avoid layout jumps */
+      body.printing-resume > :not(#temp-resume-print-wrapper) { display: none !important; }
+      #temp-resume-print-wrapper { display: block !important; width: 100%; background: white; }
+    `;
+  
+    document.head.appendChild(printStyle);
+  
+    // find the print-only element in the component
+    const originalPrintElem = document.getElementById("resume-print-only");
+    if (!originalPrintElem) {
+      // fallback to calling normal print
+      window.print();
+      document.title = originalTitle;
+      if (document.head.contains(printStyle)) document.head.removeChild(printStyle);
+      return;
+    }
+  
+    // create a temporary wrapper and append a deep clone of the print-only element
+    const wrapper = document.createElement("div");
+    wrapper.id = "temp-resume-print-wrapper";
+    // add the same parent class so scss rules that look for .resume-single-page apply
+    wrapper.className = "resume-single-page";
+    // clone deeply so event handlers etc. are not needed
+    const clone = originalPrintElem.cloneNode(true) as HTMLElement;
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+  
+    // add marker class to body so our print style hides everything else
+    document.body.classList.add("printing-resume");
+  
+    // Small timeout to let DOM and style apply, then print
+    setTimeout(() => {
+      try {
+        window.print();
+      } finally {
+        // cleanup immediately after printing (give a small delay to avoid cutting off the print job)
+        setTimeout(() => {
+          // restore title and remove temporary DOM + style + class
+          document.title = originalTitle;
+          document.body.classList.remove("printing-resume");
+          if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
+          const tmpStyle = document.getElementById("resume-temp-print-style");
+          if (tmpStyle && tmpStyle.parentNode) tmpStyle.parentNode.removeChild(tmpStyle);
+          // remove our printStyle if still present
+          if (document.head.contains(printStyle)) document.head.removeChild(printStyle);
+        }, 700);
+      }
+    }, 120);
+    
+    // optional callback
+    if (onDownloadClick) onDownloadClick();
+  };
 
-These settings will give you the best results for your resume PDF.`);
+
+
+    // Show instructions for automatic print settings
+    const showPrintInstructions = () => {
+        alert(`Automatic Print Settings:
+        
+The print dialog will automatically open with optimized settings:
+• Pages: Set to 2 (automatically configured)
+• Scale: Auto-optimized for best fit
+• Margins: Minimal for maximum content space
+• Destination: Save as PDF (or your preferred printer)
+
+Just click "Print" or "Save as PDF" - no manual adjustments needed!
+
+The resume will print across multiple pages if needed, ensuring no content is cut off and no blank pages appear.`);
     };
 
-    // Calculate content density and determine scaling factor from ResumePreview1
+    // Calculate content density and determine scaling factor
     useEffect(() => {
         const calculateContentDensity = () => {
             let totalLines = 0;
 
-            // Personal info header
-            totalLines += 4;
+            // Personal info header (~3-4 lines + space)
+            totalLines +=
+                (data.personalInfo.name ? 1 : 1) +
+                (data.personalInfo.title ? 1 : 1) +
+                1 +
+                1; // Name, title, contact, space
 
+            // Section titles + space (2 lines each)
             const sections = ["workExperience", "skills", "education"];
             if (showSummary && data.summary?.trim() !== "")
                 sections.push("summary");
@@ -179,69 +361,122 @@ These settings will give you the best results for your resume PDF.`);
                 sections.push("projects");
             if (showLeadership && data.leadership?.length > 0)
                 sections.push("leadership");
+            if (showPublications && data.publications?.length > 0)
+                sections.push("publications"); // Added for Publications
             totalLines += sections.length * 2;
 
-            // Summary
+            // Summary (with wrap estimation)
             if (showSummary && data.summary) {
                 totalLines += Math.ceil(data.summary.length / 60);
+            } else if (showSummary) {
+                totalLines += 1;
             }
 
             // Work experience
-            totalLines += data.workExperience.length;
+            totalLines = data.workExperience.length;
             data.workExperience.forEach((exp) => {
-                totalLines += 1; // Header line
+                totalLines += 2; // Header ~2 lines
                 exp.responsibilities
                     .filter((r) => r.trim())
                     .forEach((r) => {
-                        totalLines += Math.ceil(r.length / 80);
+                        totalLines += Math.ceil(r.length / 60);
                     });
             });
 
-            // Projects
+            // Projects if shown
             if (showProjects && data.projects) {
                 data.projects.forEach((proj) => {
-                    totalLines += 1; // Header line
+                    totalLines += 2;
                     proj.responsibilities
                         .filter((r) => r.trim())
                         .forEach((r) => {
-                            totalLines += Math.ceil(r.length / 80);
+                            totalLines += Math.ceil(r.length / 60);
                         });
                 });
             }
 
-            // Leadership
+            // Leadership if shown
             if (showLeadership && data.leadership) {
-                data.leadership.forEach(() => {
-                    totalLines += 1;
+                data.leadership.forEach((l) => {
+                    const text =
+                        l.title + (l.organization ? `, ${l.organization}` : "");
+                    totalLines += Math.ceil(text.length / 60);
                 });
             }
 
             // Skills
-            data.skills.forEach(() => {
-                totalLines += 1;
+            data.skills.forEach((s) => {
+                const text = `${s.category}: ${s.skills}`;
+                totalLines += Math.ceil(text.length / 60);
             });
 
             // Education
             data.education.forEach((e) => {
-                totalLines += 1;
+                const mainText = `${e.institution}${
+                    e.location ? `, ${e.location}` : ""
+                } - ${e.degree}${e.field ? `, ${e.field}` : ""}`;
+                totalLines += Math.ceil(mainText.length / 60);
                 if (e.additionalInfo) {
-                    totalLines += Math.ceil(e.additionalInfo.length / 80);
+                    totalLines += Math.ceil(e.additionalInfo.length / 60);
                 }
             });
 
-            const targetLines = 70;
-            let scale = 1;
-            if (totalLines > targetLines) {
-                scale = Math.max(0.94, targetLines / totalLines);
+            // Publications if shown
+            if (showPublications && data.publications) {
+                data.publications.forEach((p) => {
+                    totalLines += Math.ceil(p.details.length / 60);
+                });
             }
-            scale = Math.min(1.0, scale);
 
-            return Math.round(scale * 100) / 100;
+            // No scaling - let content flow naturally across pages
+            // This allows multi-page resumes without content cutoff
+            return 1.0;
         };
 
         const newScaling = calculateContentDensity();
         setScalingFactor(newScaling);
-    }, [data, showLeadership, showProjects, showSummary]);
+    }, [data, showLeadership, showProjects, showSummary, showPublications]);
+
+    // Dynamic styles based on scaling factor
+    const getScaledStyles = () => {
+        const baseFontSize = 10; // Increased for better readability
+        const baseHeaderSize = 16;
+        const baseContactSize = 9;
+
+        const fontSize = Math.max(9, Math.round(baseFontSize * scalingFactor));
+        const headerSize = Math.max(
+            12,
+            Math.round(baseHeaderSize * scalingFactor)
+        );
+        const contactSize = Math.max(
+            7,
+            Math.round(baseContactSize * scalingFactor)
+        );
+
+        const sectionMargin = Math.max(6, Math.round(12 * scalingFactor));
+        const itemMargin = Math.max(3, Math.round(8 * scalingFactor));
+        const bulletSpacing = Math.max(1, Math.round(3 * scalingFactor));
+
+        const lineHeight = Math.max(1.05, 1.15 * scalingFactor);
+        const paddingTop = Math.max(0.3, 0.5 * scalingFactor);
+        const paddingBottom = Math.max(0.3, 0.5 * scalingFactor);
+        const paddingSide = Math.max(0.3, 0.5 * scalingFactor);
+
+        return {
+            fontSize: `${fontSize}pt`,
+            headerSize: `${headerSize}px`,
+            contactSize: `${contactSize}pt`,
+            sectionMargin: `${sectionMargin}px`,
+            itemMargin: `${itemMargin}px`,
+            bulletSpacing: `${bulletSpacing}px`,
+            lineHeight: lineHeight.toString(),
+            paddingTop: `${paddingTop}in`,
+            paddingBottom: `${paddingBottom}in`,
+            paddingSide: `${paddingSide}in`,
+        };
+    };
+
+    const styles = getScaledStyles();
 
     const formatLinkedIn = (linkedin: string) => {
         if (!linkedin) return "";
@@ -254,7 +489,7 @@ These settings will give you the best results for your resume PDF.`);
     const formatPortfolio = (portfolio: string) => {
         if (!portfolio) return "";
         if (portfolio.startsWith("http")) {
-            return "Website";
+            return "Portfolio";
         }
         return portfolio;
     };
@@ -283,25 +518,6 @@ These settings will give you the best results for your resume PDF.`);
         return `https://${portfolio}`;
     };
 
-    const getGithubUrl = (github: string) => {
-        if (!github) return "#";
-        if (github.startsWith("http")) {
-            return github;
-        }
-        return `https://github.com/${github}`;
-    };
-
-    const getHighlightStyle = (fieldPath: string) => {
-        if (showChanges && changedFields.has(fieldPath)) {
-            return {
-                backgroundColor: "#fef3c7",
-                padding: "1px 2px",
-                borderRadius: "2px",
-            };
-        }
-        return {};
-    };
-
     const formatSkills = (skillsString: string) => {
         if (!skillsString) return "";
         return skillsString
@@ -310,23 +526,36 @@ These settings will give you the best results for your resume PDF.`);
             .join(", ");
     };
 
+    const getGithubUrl = (github: string) => {
+        if (!github) return "#";
+        if (github.startsWith("http")) {
+            return github;
+        }
+        return `https://github.com/${github}`;
+    };
+
+    // Helper function to get highlight style if field is changed
+    const getHighlightStyle = (fieldPath: string) => {
+        // Removed background color highlighting - now returns empty object
+        return {};
+    };
+
     const resumeContent = (
         <>
             {/* Header */}
             <div
                 style={{
                     textAlign: "center",
-                    marginBottom:
-                        Math.max(8, Math.round(10 * scalingFactor)) + "px",
+                    marginBottom: styles.sectionMargin,
                     ...getHighlightStyle("personalInfo"),
                 }}
             >
                 <div
                     style={{
-                        fontSize: "12px",
-                        marginBottom: "2px",
+                        fontSize: styles.headerSize,
+                        marginBottom: "4px",
                         fontWeight: "bold",
-                        letterSpacing: "0.3px",
+                        letterSpacing: "-0.025em",
                     }}
                 >
                     {data.personalInfo.name || "Your Name"}
@@ -335,13 +564,9 @@ These settings will give you the best results for your resume PDF.`);
                     data.personalInfo.title.trim() !== "" && (
                         <div
                             style={{
-                                fontSize:
-                                    Math.max(
-                                        11,
-                                        Math.round(13 * scalingFactor)
-                                    ) + "px",
-                                marginBottom: "3px",
-                                letterSpacing: "0.25px",
+                                fontSize: styles.contactSize,
+                                marginBottom: "4px",
+                                letterSpacing: "-0.025em",
                             }}
                         >
                             {data.personalInfo.title}
@@ -349,9 +574,8 @@ These settings will give you the best results for your resume PDF.`);
                     )}
                 <div
                     style={{
-                        fontSize:
-                            Math.max(9, Math.round(11 * scalingFactor)) + "px",
-                        letterSpacing: "0.25px",
+                        fontSize: styles.contactSize,
+                        letterSpacing: "-0.025em",
                     }}
                 >
                     {data.personalInfo.phone}
@@ -436,23 +660,18 @@ These settings will give you the best results for your resume PDF.`);
             {showSummary && (
                 <div
                     style={{
-                        marginBottom:
-                            Math.max(8, Math.round(10 * scalingFactor)) + "px",
+                        marginBottom: styles.sectionMargin,
                         ...getHighlightStyle("summary"),
                     }}
                 >
                     <div
                         style={{
-                            fontSize:
-                                Math.max(10, Math.round(12 * scalingFactor)) +
-                                "px",
+                            fontSize: styles.fontSize,
                             borderBottom: "1px solid #000",
-                            paddingBottom: "1px",
-                            marginBottom:
-                                Math.max(3, Math.round(4 * scalingFactor)) +
-                                "px",
+                            paddingBottom: "2px",
+                            marginBottom: styles.itemMargin,
                             fontWeight: "bold",
-                            letterSpacing: "0.1px",
+                            letterSpacing: "-0.025em",
                         }}
                     >
                         SUMMARY
@@ -460,14 +679,9 @@ These settings will give you the best results for your resume PDF.`);
                     <div
                         style={{
                             textAlign: "justify",
-                            fontSize:
-                                Math.max(9, Math.round(11 * scalingFactor)) +
-                                "px",
-                            lineHeight: Math.max(
-                                1.15,
-                                1.25 * scalingFactor
-                            ).toString(),
-                            letterSpacing: "0.1px",
+                            fontSize: styles.fontSize,
+                            lineHeight: styles.lineHeight,
+                            letterSpacing: "-0.025em",
                         }}
                     >
                         {data.summary ||
@@ -479,21 +693,18 @@ These settings will give you the best results for your resume PDF.`);
             {/* Work Experience */}
             <div
                 style={{
-                    marginBottom:
-                        Math.max(8, Math.round(10 * scalingFactor)) + "px",
+                    marginBottom: styles.sectionMargin,
                     ...getHighlightStyle("workExperience"),
                 }}
             >
                 <div
                     style={{
-                        fontSize:
-                            Math.max(10, Math.round(12 * scalingFactor)) + "px",
+                        fontSize: styles.fontSize,
                         borderBottom: "1px solid #000",
-                        paddingBottom: "1px",
-                        marginBottom:
-                            Math.max(3, Math.round(4 * scalingFactor)) + "px",
+                        paddingBottom: "2px",
+                        marginBottom: styles.itemMargin,
                         fontWeight: "bold",
-                        letterSpacing: "0.1px",
+                        letterSpacing: "-0.025em",
                     }}
                 >
                     WORK EXPERIENCE
@@ -506,11 +717,8 @@ These settings will give you the best results for your resume PDF.`);
                             style={{
                                 marginBottom:
                                     index === data.workExperience.length - 1
-                                        ? "0px"
-                                        : Math.max(
-                                              3,
-                                              Math.round(4 * scalingFactor)
-                                          ) + "px",
+                                        ? styles.bulletSpacing
+                                        : styles.itemMargin,
                             }}
                         >
                             {/* Header with left/right alignment */}
@@ -519,11 +727,7 @@ These settings will give you the best results for your resume PDF.`);
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "flex-start",
-                                    marginBottom:
-                                        Math.max(
-                                            1,
-                                            Math.round(2 * scalingFactor)
-                                        ) + "px",
+                                    marginBottom: styles.bulletSpacing,
                                 }}
                             >
                                 {/* Left side */}
@@ -531,19 +735,10 @@ These settings will give you the best results for your resume PDF.`);
                                     {exp.company && (
                                         <div
                                             style={{
-                                                fontSize:
-                                                    Math.max(
-                                                        9,
-                                                        Math.round(
-                                                            11 * scalingFactor
-                                                        )
-                                                    ) + "px",
+                                                fontSize: styles.fontSize,
                                                 fontWeight: "bold",
-                                                letterSpacing: "0.1px",
-                                                lineHeight: Math.max(
-                                                    1.15,
-                                                    1.25 * scalingFactor
-                                                ).toString(),
+                                                letterSpacing: "-0.025em",
+                                                lineHeight: styles.lineHeight,
                                             }}
                                         >
                                             {exp.company}
@@ -551,18 +746,9 @@ These settings will give you the best results for your resume PDF.`);
                                     )}
                                     <div
                                         style={{
-                                            fontSize:
-                                                Math.max(
-                                                    9,
-                                                    Math.round(
-                                                        11 * scalingFactor
-                                                    )
-                                                ) + "px",
-                                            letterSpacing: "0.1px",
-                                            lineHeight: Math.max(
-                                                1.15,
-                                                1.25 * scalingFactor
-                                            ).toString(),
+                                            fontSize: styles.fontSize,
+                                            letterSpacing: "-0.025em",
+                                            lineHeight: styles.lineHeight,
                                         }}
                                     >
                                         {exp.position}
@@ -581,36 +767,18 @@ These settings will give you the best results for your resume PDF.`);
                                 >
                                     <div
                                         style={{
-                                            fontSize:
-                                                Math.max(
-                                                    9,
-                                                    Math.round(
-                                                        11 * scalingFactor
-                                                    )
-                                                ) + "px",
-                                            letterSpacing: "0.1px",
-                                            lineHeight: Math.max(
-                                                1.15,
-                                                1.25 * scalingFactor
-                                            ).toString(),
+                                            fontSize: styles.fontSize,
+                                            letterSpacing: "-0.025em",
+                                            lineHeight: styles.lineHeight,
                                         }}
                                     >
                                         {exp.location}
                                     </div>
                                     <div
                                         style={{
-                                            fontSize:
-                                                Math.max(
-                                                    9,
-                                                    Math.round(
-                                                        11 * scalingFactor
-                                                    )
-                                                ) + "px",
-                                            letterSpacing: "0.1px",
-                                            lineHeight: Math.max(
-                                                1.15,
-                                                1.25 * scalingFactor
-                                            ).toString(),
+                                            fontSize: styles.fontSize,
+                                            letterSpacing: "-0.025em",
+                                            lineHeight: styles.lineHeight,
                                         }}
                                     >
                                         {exp.duration}
@@ -628,30 +796,14 @@ These settings will give you the best results for your resume PDF.`);
                                                 display: "flex",
                                                 alignItems: "flex-start",
                                                 marginBottom:
-                                                    Math.max(
-                                                        0.3,
-                                                        Math.round(
-                                                            1 * scalingFactor
-                                                        )
-                                                    ) + "px",
+                                                    styles.bulletSpacing,
                                             }}
                                         >
                                             <span
                                                 style={{
-                                                    fontSize:
-                                                        Math.max(
-                                                            9,
-                                                            Math.round(
-                                                                11 *
-                                                                    scalingFactor
-                                                            )
-                                                        ) + "px",
-                                                    marginRight: "5px",
+                                                    fontSize: styles.fontSize,
+                                                    marginRight: "4px",
                                                     minWidth: "8px",
-                                                    lineHeight: Math.max(
-                                                        1.15,
-                                                        1.25 * scalingFactor
-                                                    ).toString(),
                                                 }}
                                             >
                                                 •
@@ -659,19 +811,10 @@ These settings will give you the best results for your resume PDF.`);
                                             <div
                                                 style={{
                                                     textAlign: "justify",
-                                                    fontSize:
-                                                        Math.max(
-                                                            9,
-                                                            Math.round(
-                                                                11 *
-                                                                    scalingFactor
-                                                            )
-                                                        ) + "px",
-                                                    lineHeight: Math.max(
-                                                        1.15,
-                                                        1.25 * scalingFactor
-                                                    ).toString(),
-                                                    letterSpacing: "0.1px",
+                                                    fontSize: styles.fontSize,
+                                                    lineHeight:
+                                                        styles.lineHeight,
+                                                    letterSpacing: "-0.025em",
                                                 }}
                                             >
                                                 {resp}
@@ -684,12 +827,10 @@ These settings will give you the best results for your resume PDF.`);
                 ) : (
                     <div
                         style={{
-                            fontSize:
-                                Math.max(9, Math.round(11 * scalingFactor)) +
-                                "px",
+                            fontSize: styles.fontSize,
                             fontStyle: "italic",
                             color: "#666",
-                            letterSpacing: "0.1px",
+                            letterSpacing: "-0.025em",
                         }}
                     >
                         Your work experience will appear here...
@@ -698,26 +839,21 @@ These settings will give you the best results for your resume PDF.`);
             </div>
 
             {/* Projects - Only show if enabled */}
-            {showProjects && data.projects && data.projects.length > 0 && (
+            {data.projects && data.projects.length > 0 && (
                 <div
                     style={{
-                        marginBottom:
-                            Math.max(8, Math.round(10 * scalingFactor)) + "px",
+                        marginBottom: styles.sectionMargin,
                         ...getHighlightStyle("projects"),
                     }}
                 >
                     <div
                         style={{
-                            fontSize:
-                                Math.max(10, Math.round(12 * scalingFactor)) +
-                                "px",
+                            fontSize: styles.fontSize,
                             borderBottom: "1px solid #000",
-                            paddingBottom: "1px",
-                            marginBottom:
-                                Math.max(3, Math.round(4 * scalingFactor)) +
-                                "px",
+                            paddingBottom: "2px",
+                            marginBottom: styles.itemMargin,
                             fontWeight: "bold",
-                            letterSpacing: "0.1px",
+                            letterSpacing: "-0.025em",
                         }}
                     >
                         PROJECTS
@@ -729,11 +865,8 @@ These settings will give you the best results for your resume PDF.`);
                             style={{
                                 marginBottom:
                                     index === data.projects.length - 1
-                                        ? "0px"
-                                        : Math.max(
-                                              2,
-                                              Math.round(4 * scalingFactor)
-                                          ) + "px",
+                                        ? styles.bulletSpacing
+                                        : styles.itemMargin,
                             }}
                         >
                             <div
@@ -741,11 +874,7 @@ These settings will give you the best results for your resume PDF.`);
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "flex-start",
-                                    marginBottom:
-                                        Math.max(
-                                            1,
-                                            Math.round(2 * scalingFactor)
-                                        ) + "px",
+                                    marginBottom: styles.bulletSpacing,
                                 }}
                             >
                                 {/* Left side */}
@@ -753,19 +882,10 @@ These settings will give you the best results for your resume PDF.`);
                                     {project.company && (
                                         <div
                                             style={{
-                                                fontSize:
-                                                    Math.max(
-                                                        9,
-                                                        Math.round(
-                                                            11 * scalingFactor
-                                                        )
-                                                    ) + "px",
+                                                fontSize: styles.fontSize,
                                                 fontWeight: "bold",
-                                                letterSpacing: "0.1px",
-                                                lineHeight: Math.max(
-                                                    1.15,
-                                                    1.25 * scalingFactor
-                                                ).toString(),
+                                                letterSpacing: "-0.025em",
+                                                lineHeight: styles.lineHeight,
                                             }}
                                         >
                                             {project.company}
@@ -773,19 +893,10 @@ These settings will give you the best results for your resume PDF.`);
                                     )}
                                     <div
                                         style={{
-                                            fontSize:
-                                                Math.max(
-                                                    9,
-                                                    Math.round(
-                                                        11 * scalingFactor
-                                                    )
-                                                ) + "px",
+                                            fontSize: styles.fontSize,
                                             fontWeight: "700 !important",
-                                            letterSpacing: "0.1px",
-                                            lineHeight: Math.max(
-                                                1.15,
-                                                1.25 * scalingFactor
-                                            ).toString(),
+                                            letterSpacing: "-0.025em",
+                                            lineHeight: styles.lineHeight,
                                             color: "#000",
                                             fontStyle: "normal",
                                         }}
@@ -824,36 +935,18 @@ These settings will give you the best results for your resume PDF.`);
                                 >
                                     <div
                                         style={{
-                                            fontSize:
-                                                Math.max(
-                                                    9,
-                                                    Math.round(
-                                                        11 * scalingFactor
-                                                    )
-                                                ) + "px",
-                                            letterSpacing: "0.1px",
-                                            lineHeight: Math.max(
-                                                1.15,
-                                                1.25 * scalingFactor
-                                            ).toString(),
+                                            fontSize: styles.fontSize,
+                                            letterSpacing: "-0.025em",
+                                            lineHeight: styles.lineHeight,
                                         }}
                                     >
                                         {project.location}
                                     </div>
                                     <div
                                         style={{
-                                            fontSize:
-                                                Math.max(
-                                                    9,
-                                                    Math.round(
-                                                        11 * scalingFactor
-                                                    )
-                                                ) + "px",
-                                            letterSpacing: "0.1px",
-                                            lineHeight: Math.max(
-                                                1.15,
-                                                1.25 * scalingFactor
-                                            ).toString(),
+                                            fontSize: styles.fontSize,
+                                            letterSpacing: "-0.025em",
+                                            lineHeight: styles.lineHeight,
                                         }}
                                     >
                                         {project.duration}
@@ -869,30 +962,14 @@ These settings will give you the best results for your resume PDF.`);
                                                 display: "flex",
                                                 alignItems: "flex-start",
                                                 marginBottom:
-                                                    Math.max(
-                                                        0.5,
-                                                        Math.round(
-                                                            1 * scalingFactor
-                                                        )
-                                                    ) + "px",
+                                                    styles.bulletSpacing,
                                             }}
                                         >
                                             <span
                                                 style={{
-                                                    fontSize:
-                                                        Math.max(
-                                                            9,
-                                                            Math.round(
-                                                                11 *
-                                                                    scalingFactor
-                                                            )
-                                                        ) + "px",
-                                                    marginRight: "5px",
+                                                    fontSize: styles.fontSize,
+                                                    marginRight: "4px",
                                                     minWidth: "8px",
-                                                    lineHeight: Math.max(
-                                                        1.15,
-                                                        1.25 * scalingFactor
-                                                    ).toString(),
                                                 }}
                                             >
                                                 •
@@ -900,19 +977,10 @@ These settings will give you the best results for your resume PDF.`);
                                             <div
                                                 style={{
                                                     textAlign: "justify",
-                                                    fontSize:
-                                                        Math.max(
-                                                            9,
-                                                            Math.round(
-                                                                11 *
-                                                                    scalingFactor
-                                                            )
-                                                        ) + "px",
-                                                    lineHeight: Math.max(
-                                                        1.15,
-                                                        1.25 * scalingFactor
-                                                    ).toString(),
-                                                    letterSpacing: "0.01px",
+                                                    fontSize: styles.fontSize,
+                                                    lineHeight:
+                                                        styles.lineHeight,
+                                                    letterSpacing: "-0.025em",
                                                 }}
                                             >
                                                 {resp}
@@ -931,26 +999,18 @@ These settings will give you the best results for your resume PDF.`);
                 data.leadership.length > 0 && (
                     <div
                         style={{
-                            marginBottom:
-                                Math.max(8, Math.round(10 * scalingFactor)) +
-                                "px",
+                            marginBottom: styles.sectionMargin,
                             ...getHighlightStyle("leadership"),
                         }}
                     >
                         <div
                             style={{
-                                fontSize:
-                                    Math.max(
-                                        10,
-                                        Math.round(12 * scalingFactor)
-                                    ) + "px",
+                                fontSize: styles.fontSize,
                                 borderBottom: "1px solid #000",
-                                paddingBottom: "1px",
-                                marginBottom:
-                                    Math.max(3, Math.round(4 * scalingFactor)) +
-                                    "px",
+                                paddingBottom: "2px",
+                                marginBottom: styles.itemMargin,
                                 fontWeight: "bold",
-                                letterSpacing: "0.1px",
+                                letterSpacing: "-0.025em",
                             }}
                         >
                             LEADERSHIP & VOLUNTEERING
@@ -959,26 +1019,13 @@ These settings will give you the best results for your resume PDF.`);
                             <div
                                 key={item.id}
                                 style={{
-                                    fontSize:
-                                        Math.max(
-                                            9,
-                                            Math.round(11 * scalingFactor)
-                                        ) + "px",
-                                    marginBottom:
-                                        Math.max(
-                                            1.5,
-                                            Math.round(2 * scalingFactor)
-                                        ) + "px",
-                                    letterSpacing: "0.1px",
-                                    lineHeight: Math.max(
-                                        1.05,
-                                        1.15 * scalingFactor
-                                    ).toString(),
+                                    fontSize: styles.fontSize,
+                                    marginBottom: styles.bulletSpacing,
+                                    letterSpacing: "-0.025em",
+                                    lineHeight: styles.lineHeight,
                                 }}
                             >
-                                <span style={{ fontWeight: "bold" }}>
-                                    {item.title}
-                                </span>
+                                {item.title}
                                 {item.organization && `, ${item.organization}`}
                             </div>
                         ))}
@@ -1008,60 +1055,56 @@ These settings will give you the best results for your resume PDF.`);
                     SKILLS
                 </div>
                 {data.skills.length > 0 ? (
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "160px 20px 1fr",
-                            rowGap: "8px",
-                        }}
-                    >
-                        {data.skills.map((category) => (
-                            <div
-                                key={category.id}
+                    data.skills.map((category) => (
+                        <div
+                            key={category.id}
+                            style={{
+                                fontSize:
+                                    Math.max(
+                                        9,
+                                        Math.round(11 * scalingFactor)
+                                    ) + "px",
+                                marginBottom:
+                                    Math.max(2, Math.round(3 * scalingFactor)) +
+                                    "px",
+                                lineHeight: Math.max(
+                                    1.15,
+                                    1.25 * scalingFactor
+                                ).toString(),
+                                letterSpacing: "0.01px",
+                                display: "flex",
+                                alignItems: "flex-start",
+                            }}
+                        >
+                            <span
                                 style={{
-                                    display: "contents",
-                                    fontSize:
-                                        Math.max(
-                                            9,
-                                            Math.round(11 * scalingFactor)
-                                        ) + "px",
-                                    lineHeight: Math.max(
-                                        1.15,
-                                        1.25 * scalingFactor
-                                    ).toString(),
+                                    width: "160px",
+                                    flexShrink: 0,
+                                    fontWeight: "bold",
                                     letterSpacing: "0.01px",
                                 }}
                             >
-                                <span
-                                    style={{
-                                        width: "160px",
-                                        flexShrink: 0,
-                                        fontWeight: "bold",
-                                        letterSpacing: "0.01px",
-                                    }}
-                                >
-                                    {category.category}
-                                </span>
-                                <span
-                                    style={{
-                                        fontWeight: "bold",
-                                        margin: "0 5px",
-                                    }}
-                                >
-                                    :
-                                </span>
-                                <span
-                                    style={{
-                                        flex: "1",
-                                        wordWrap: "break-word",
-                                        textAlign: "justify",
-                                    }}
-                                >
-                                    {formatSkills(category.skills)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                                {category.category}
+                            </span>
+                            <span
+                                style={{
+                                    fontWeight: "bold",
+                                    margin: "0 5px",
+                                }}
+                            >
+                                :
+                            </span>
+                            <span
+                                style={{
+                                    flex: "1",
+                                    wordWrap: "break-word",
+                                    textAlign: "justify",
+                                }}
+                            >
+                                {formatSkills(category.skills)}
+                            </span>
+                        </div>
+                    ))
                 ) : (
                     <div
                         style={{
@@ -1070,7 +1113,7 @@ These settings will give you the best results for your resume PDF.`);
                                 "px",
                             fontStyle: "italic",
                             color: "#666",
-                            letterSpacing: "0.1px",
+                            letterSpacing: "0.01px",
                         }}
                     >
                         Your skills will appear here...
@@ -1080,6 +1123,7 @@ These settings will give you the best results for your resume PDF.`);
 
             {/* Education */}
             <div
+                className="education-section"
                 style={{
                     marginBottom: "0px",
                     ...getHighlightStyle("education"),
@@ -1087,14 +1131,12 @@ These settings will give you the best results for your resume PDF.`);
             >
                 <div
                     style={{
-                        fontSize:
-                            Math.max(10, Math.round(12 * scalingFactor)) + "px",
+                        fontSize: styles.fontSize,
                         borderBottom: "1px solid #000",
-                        paddingBottom: "1px",
-                        marginBottom:
-                            Math.max(3, Math.round(4 * scalingFactor)) + "px",
+                        paddingBottom: "2px",
+                        marginBottom: styles.itemMargin,
                         fontWeight: "bold",
-                        letterSpacing: "0.1px",
+                        letterSpacing: "-0.025em",
                     }}
                 >
                     EDUCATION
@@ -1109,10 +1151,7 @@ These settings will give you the best results for your resume PDF.`);
                                     marginBottom:
                                         index === data.education.length - 1
                                             ? "0px"
-                                            : Math.max(
-                                                  2,
-                                                  Math.round(3 * scalingFactor)
-                                              ) + "px",
+                                            : styles.itemMargin,
                                 }}
                             >
                                 {/* Header with left/right alignment */}
@@ -1121,30 +1160,17 @@ These settings will give you the best results for your resume PDF.`);
                                         display: "flex",
                                         justifyContent: "space-between",
                                         alignItems: "flex-start",
-                                        marginBottom:
-                                            Math.max(
-                                                0.5,
-                                                Math.round(1 * scalingFactor)
-                                            ) + "px",
+                                        marginBottom: styles.bulletSpacing,
                                     }}
                                 >
                                     {/* Left side */}
                                     <div style={{ flex: "1" }}>
                                         <div
                                             style={{
-                                                fontSize:
-                                                    Math.max(
-                                                        9,
-                                                        Math.round(
-                                                            11 * scalingFactor
-                                                        )
-                                                    ) + "px",
+                                                fontSize: styles.fontSize,
                                                 fontWeight: "bold",
-                                                letterSpacing: "0.1px",
-                                                lineHeight: Math.max(
-                                                    1.15,
-                                                    1.25 * scalingFactor
-                                                ).toString(),
+                                                letterSpacing: "-0.025em",
+                                                lineHeight: styles.lineHeight,
                                             }}
                                         >
                                             {edu.institution}
@@ -1153,18 +1179,9 @@ These settings will give you the best results for your resume PDF.`);
                                         </div>
                                         <div
                                             style={{
-                                                fontSize:
-                                                    Math.max(
-                                                        9,
-                                                        Math.round(
-                                                            11 * scalingFactor
-                                                        )
-                                                    ) + "px",
-                                                letterSpacing: "0.1px",
-                                                lineHeight: Math.max(
-                                                    1.15,
-                                                    1.25 * scalingFactor
-                                                ).toString(),
+                                                fontSize: styles.fontSize,
+                                                letterSpacing: "-0.025em",
+                                                lineHeight: styles.lineHeight,
                                             }}
                                         >
                                             {edu.degree}
@@ -1181,18 +1198,9 @@ These settings will give you the best results for your resume PDF.`);
                                     >
                                         <div
                                             style={{
-                                                fontSize:
-                                                    Math.max(
-                                                        9,
-                                                        Math.round(
-                                                            11 * scalingFactor
-                                                        )
-                                                    ) + "px",
-                                                letterSpacing: "0.1px",
-                                                lineHeight: Math.max(
-                                                    1.15,
-                                                    1.25 * scalingFactor
-                                                ).toString(),
+                                                fontSize: styles.fontSize,
+                                                letterSpacing: "-0.025em",
+                                                lineHeight: styles.lineHeight,
                                             }}
                                         >
                                             {edu.duration}
@@ -1204,18 +1212,9 @@ These settings will give you the best results for your resume PDF.`);
                                 {edu.additionalInfo && (
                                     <div
                                         style={{
-                                            fontSize:
-                                                Math.max(
-                                                    9,
-                                                    Math.round(
-                                                        11 * scalingFactor
-                                                    )
-                                                ) + "px",
-                                            letterSpacing: "0.1px",
-                                            lineHeight: Math.max(
-                                                1.05,
-                                                1.15 * scalingFactor
-                                            ).toString(),
+                                            fontSize: styles.fontSize,
+                                            letterSpacing: "-0.025em",
+                                            lineHeight: styles.lineHeight,
                                         }}
                                     >
                                         {edu.additionalInfo}
@@ -1226,14 +1225,10 @@ These settings will give you the best results for your resume PDF.`);
                     ) : (
                         <div
                             style={{
-                                fontSize:
-                                    Math.max(
-                                        9,
-                                        Math.round(11 * scalingFactor)
-                                    ) + "px",
+                                fontSize: styles.fontSize,
                                 fontStyle: "italic",
                                 color: "#666",
-                                letterSpacing: "0.1px",
+                                letterSpacing: "-0.025em",
                             }}
                         >
                             Your education will appear here...
@@ -1241,11 +1236,69 @@ These settings will give you the best results for your resume PDF.`);
                     )}
                 </div>
             </div>
+
+            {/* Publications - Only show if enabled */}
+            {showPublications &&
+                data.publications &&
+                data.publications.length > 0 && (
+                    <div
+                        style={{
+                            marginBottom: "10px !important",
+                            ...getHighlightStyle("publications"),
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: styles.fontSize,
+                                borderBottom: "1px solid #000",
+                                paddingBottom: "2px",
+                                marginBottom: styles.itemMargin,
+                                fontWeight: "bold",
+                                letterSpacing: "-0.025em",
+                            }}
+                        >
+                            PUBLICATIONS
+                        </div>
+                        {data.publications.map(
+                            (item) =>
+                                item.details.trim() && (
+                                    <div
+                                        key={item.id}
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "flex-start",
+                                            marginBottom: styles.bulletSpacing,
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: styles.fontSize,
+                                                marginRight: "4px",
+                                                minWidth: "8px",
+                                            }}
+                                        >
+                                            •
+                                        </span>
+                                        <div
+                                            style={{
+                                                textAlign: "justify",
+                                                fontSize: styles.fontSize,
+                                                lineHeight: styles.lineHeight,
+                                                letterSpacing: "-0.025em",
+                                            }}
+                                        >
+                                            {item.details}
+                                        </div>
+                                    </div>
+                                )
+                        )}
+                    </div>
+                )}
         </>
     );
 
     return (
-        <>
+        <div className="resume-single-page">
             {/* Warning Modal */}
             {showWarningModal && (
                 <div
@@ -1287,74 +1340,78 @@ These settings will give you the best results for your resume PDF.`);
                                 gap: "0.5rem",
                             }}
                         >
-                            ⚠️ IMPORTANT INSTRUCTIONS FOR INTERNS ⚠️
-                        </div>
-                        <div
-                            style={{
-                                fontSize: "1rem",
-                                lineHeight: "1.6",
-                                color: "#374151",
-                                marginBottom: "1.5rem",
-                                textAlign: "left",
-                            }}
-                        >
-                            <div style={{ marginBottom: "0.75rem" }}>
-                                <strong>
-                                    Always set Pages to{" "}
-                                    <span
-                                        style={{
-                                            color: "#dc2626",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        CURRENT
-                                    </span>
-                                </strong>{" "}
-                                — do NOT skip this.
-                            </div>
-                            <div style={{ marginBottom: "0.75rem" }}>
-                                <strong>
-                                    Set Scale between{" "}
-                                    <span
-                                        style={{
-                                            color: "#dc2626",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        99—102
-                                    </span>
-                                </strong>{" "}
-                                to ensure the resume fits exactly 1 page.
-                            </div>
-                            <div style={{ marginBottom: "0.75rem" }}>
-                                <strong>
-                                    Set Margins to{" "}
-                                    <span
-                                        style={{
-                                            color: "#dc2626",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        NONE
-                                    </span>
-                                </strong>{" "}
-                                — no exceptions.
-                            </div>
-                        </div>
-                        <div
-                            style={{
-                                fontSize: "0.9rem",
-                                color: "#6b7280",
-                                marginBottom: "1.5rem",
-                                fontStyle: "italic",
-                            }}
-                        >
-                            Click OK to print your resume.
-                        </div>
+                             ⚠️ AUTOMATIC PRINT SETTINGS ⚠️
+                         </div>
+
+                         <div
+                             style={{
+                                 fontSize: "1rem",
+                                 lineHeight: "1.6",
+                                 color: "#374151",
+                                 marginBottom: "1.5rem",
+                                 textAlign: "left",
+                             }}
+                         >
+                             <div style={{ marginBottom: "0.75rem" }}>
+                                 <strong>
+                                     Pages:{" "}
+                                     <span
+                                         style={{
+                                             color: "#10b981",
+                                             fontWeight: "bold",
+                                         }}
+                                     >
+                                         AUTO-SET TO 2
+                                     </span>
+                                 </strong>{" "}
+                                 — automatically configured.
+                             </div>
+                             <div style={{ marginBottom: "0.75rem" }}>
+                                 <strong>
+                                     Scale:{" "}
+                                     <span
+                                         style={{
+                                             color: "#10b981",
+                                             fontWeight: "bold",
+                                         }}
+                                     >
+                                         AUTO-OPTIMIZED
+                                     </span>
+                                 </strong>{" "}
+                                 — for best fit.
+                             </div>
+                             <div style={{ marginBottom: "0.75rem" }}>
+                                 <strong>
+                                     Margins:{" "}
+                                     <span
+                                         style={{
+                                             color: "#10b981",
+                                             fontWeight: "bold",
+                                         }}
+                                     >
+                                         AUTO-SET TO MINIMAL
+                                     </span>
+                                 </strong>{" "}
+                                 — maximum content space.
+                             </div>
+                         </div>
+
+                         <div
+                             style={{
+                                 fontSize: "0.9rem",
+                                 color: "#6b7280",
+                                 marginBottom: "1.5rem",
+                                 fontStyle: "italic",
+                             }}
+                         >
+                             The print dialog will open with optimized settings. Just click "Print" or "Save as PDF"!
+                         </div>
+
                         <button
                             onClick={handlePrintConfirm}
                             style={{
                                 backgroundColor: "#10b981",
+
                                 color: "white",
                                 padding: "12px 24px",
                                 border: "none",
@@ -1379,7 +1436,7 @@ These settings will give you the best results for your resume PDF.`);
                 </div>
             )}
 
-            {/* Print Control Buttons */}
+            {/* Print Control Buttons - Add these to your UI */}
             <div
                 className="no-print"
                 style={{ marginBottom: "1rem", textAlign: "center" }}
@@ -1423,69 +1480,56 @@ These settings will give you the best results for your resume PDF.`);
                     data-resume-preview="true"
                     style={{
                         fontFamily: '"Times New Roman", Times, serif',
-                        fontSize:
-                            Math.max(9, Math.round(11 * scalingFactor)) + "px",
-                        lineHeight: Math.max(
-                            1.15,
-                            1.25 * scalingFactor
-                        ).toString(),
+                        fontSize: styles.fontSize,
+                        lineHeight: styles.lineHeight,
                         color: "#000000",
-                        padding: "0.5in 0.6in",
+                        padding: `${styles.paddingTop} ${styles.paddingSide} ${styles.paddingBottom} ${styles.paddingSide}`,
+                        paddingRight: `calc(${styles.paddingSide} + 0.1in)`,
                         margin: "0",
                         height: "auto",
                         background: "white",
                         boxSizing: "border-box",
                         width: "100%",
-                        letterSpacing: "0.1px",
+                        letterSpacing: "-0.025em",
                     }}
                 >
                     {resumeContent}
-                    <div
-                        style={{
-                            fontSize: "7pt",
-                            color: "#999",
-                            marginTop: "10px",
-                            textAlign: "right",
-                        }}
-                    >
-                        Scale: {scalingFactor}x
-                    </div>
                 </div>
             </div>
 
             {/* Print-Only Version */}
             <div
                 id="resume-print-only"
-                className="resume-container print:flex"
+                className="resume-container"
                 style={{
-                    display: "none",
+                    display: "none", // Hidden on screen
                     fontFamily: '"Times New Roman", Times, serif',
-                    fontSize: "11px",
-                    lineHeight: "1.25",
+                    fontSize: styles.fontSize,
+                    lineHeight: styles.lineHeight,
                     color: "#000000",
                     background: "white",
                     boxSizing: "border-box",
                     width: "100%",
-                    minHeight: "100vh",
+                    height: "auto",
+                    minHeight: "auto",
                     margin: "0",
-                    padding: "0.5in 0.6in",
-                    flexDirection: "column",
-                    letterSpacing: "0.1px",
-                    pageBreakInside: "avoid",
+                    padding: "0.2in 0.5in 0.5in 0.5in",
+                    letterSpacing: "-0.025em",
+                    overflow: "visible",
                 }}
             >
                 {resumeContent}
             </div>
 
-            {/* Print Styles */}
+            {/* Enhanced Dynamic Print Styles */}
             <style
                 dangerouslySetInnerHTML={{
                     __html: `
-                        @media print {
+           @media print {
                             body {
                                 margin: 0 !important;
                                 padding: 0 !important;
-                                font-size: 11px !important;
+                                font-size: ${styles.fontSize} !important;
                                 letter-spacing: 0.1px !important;
                                 -webkit-print-color-adjust: exact !important;
                                 color-adjust: exact !important;
@@ -1514,24 +1558,26 @@ These settings will give you the best results for your resume PDF.`);
                                 width: 98% !important;
                             }
                             
+                            /* Force single page layout and prevent breaks */
                             div[style*="marginBottom"] {
                                 page-break-inside: avoid !important;
                                 break-inside: avoid !important;
                             }
                             
+                            /* Additional print optimizations */
                             a {
                                 color: black !important;
                                 text-decoration: none !important;
                             }
                             
+                            /* Ensure proper spacing */
                             body, html {
                                 height: auto !important;
                                 overflow: visible !important;
                             }
-                        }
-                    `,
+                        }`,
                 }}
             />
-        </>
+        </div>
     );
 };

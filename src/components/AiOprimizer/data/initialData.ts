@@ -61,4 +61,5 @@ export const initialData: ResumeData = {
             additionalInfo: "",
         },
     ],
+    publications: [],  
 };

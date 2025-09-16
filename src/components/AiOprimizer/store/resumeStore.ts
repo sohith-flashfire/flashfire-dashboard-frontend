@@ -13,7 +13,7 @@ interface ResumeStore {
      isSkillsEditable: boolean;
      isEducationEditable: boolean;
      resume_id: string;
-     accessKey: string;
+     accessKey:   string;
      userId: string;
 
      // Actions
@@ -38,7 +38,7 @@ interface ResumeStore {
      lockAllSections: () => void;
 }
 
-export const useResumeUnlockStore = create<ResumeStore>((set, get) => ({
+export const useResumeUnlockStore = create<ResumeStore>((set , get) => ({
      // Initial state - everything locked
      isEditingUnlocked: false,
      isPersonalInfoEditable: false,
@@ -48,7 +48,7 @@ export const useResumeUnlockStore = create<ResumeStore>((set, get) => ({
      isLeadershipEditable: false,
      isSkillsEditable: false,
      isEducationEditable: false,
-     resume_id: "",
+     resume_id: "" ,
      userId: "",
      accessKey: "",
 

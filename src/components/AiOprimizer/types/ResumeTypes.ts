@@ -55,6 +55,11 @@ export interface PersonalInfo {
     github: string;
 }
 
+export interface PublicationItem{
+    id: string;
+    details: string;
+}
+
 export interface ResumeData {
     personalInfo: PersonalInfo;
     summary: string;
@@ -63,6 +68,8 @@ export interface ResumeData {
     leadership: LeadershipItem[];
     skills: SkillCategory[];
     education: EducationItem[];
+    publications: PublicationItem[];
+
 }
 
 export type ResumeDataType = typeof initialData;

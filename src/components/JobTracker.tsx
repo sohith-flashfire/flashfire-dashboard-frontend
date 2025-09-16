@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useUserJobs } from "../state_management/UserJobs.tsx";
 import LoadingScreen from "./LoadingScreen.tsx";
 import { useOperationsStore } from "../state_management/Operations.ts";
+import { toastUtils, toastMessages } from "../utils/toast";
 const JobModal = lazy(() => import("./JobModal.tsx"));
 
 const JOBS_PER_PAGE = 10;
@@ -107,10 +108,14 @@ const JobTracker = () => {
 
                 if (result.message === "Jobs updated successfully") {
                     setUserJobs(result.updatedJobs);
+                    toastUtils.success(toastMessages.jobUpdated);
                     console.log("Job updated:", result.updatedJobs);
+                } else {
+                    toastUtils.error(toastMessages.jobError);
                 }
             } catch (err) {
                 console.error("Failed to update job", err);
+                toastUtils.error(toastMessages.jobError);
             } finally {
                 setEditingJob(null);
                 setShowJobForm(false);
@@ -141,10 +146,14 @@ const JobTracker = () => {
 
                 if (result.message === "Jobs updated successfully") {
                     setUserJobs(result.updatedJobs);
+                    toastUtils.success(toastMessages.jobUpdated);
                     console.log("Job updated:", result.updatedJobs);
+                } else {
+                    toastUtils.error(toastMessages.jobError);
                 }
             } catch (err) {
                 console.error("Failed to update job", err);
+                toastUtils.error(toastMessages.jobError);
             } finally {
                 setEditingJob(null);
                 setShowJobForm(false);
@@ -217,7 +226,10 @@ const JobTracker = () => {
                     const result = await response.json();
                     if (result.message === "Jobs updated successfully") {
                         setUserJobs(result?.updatedJobs);
+                        toastUtils.success(toastMessages.jobDeleted);
                         console.log("Job deleted:", result?.updatedJobs);
+                    } else {
+                        toastUtils.error(toastMessages.jobError);
                     }
                 } else {
                     const response = await fetch(
@@ -239,12 +251,16 @@ const JobTracker = () => {
                     const result = await response.json();
                     if (result.message === "Jobs updated successfully") {
                         setUserJobs(result?.updatedJobs);
+                        toastUtils.success(toastMessages.jobDeleted);
                         console.log("Job deleted:", result?.updatedJobs);
+                    } else {
+                        toastUtils.error(toastMessages.jobError);
                     }
                 }
             }
         } catch (error) {
             console.error("Error deleting job:", error);
+            toastUtils.error("Failed to delete job. Please try again.");
         }
     };
 
@@ -323,14 +339,17 @@ const JobTracker = () => {
             let resFromServer = await reqToServer.json();
             if (resFromServer.message === "Jobs updated successfully") {
                 setUserJobs(resFromServer?.updatedJobs);
+                toastUtils.success("Job status updated successfully!");
                 console.log("Job status updated:", resFromServer?.updatedJobs);
             } else {
                 revertJobStatusUpdate(jobID, originalStatus);
+                toastUtils.error("Failed to update job status");
                 console.error("Failed to update job status on server");
             }
         } catch (error) {
             console.error("Error updating job status:", error);
             revertJobStatusUpdate(jobID, originalStatus);
+            toastUtils.error("Network error while updating job status");
         }
     };
 

@@ -82,74 +82,146 @@ export const ResumePreview1: React.FC<ResumePreviewHybridProps> = ({
     };
 
     // Function to handle actual printing after user confirms
+    // const handlePrintConfirm = () => {
+    //     setShowWarningModal(false);
+
+    //     const originalTitle = document.title;
+    //     document.title = `${data.personalInfo.name || "Resume"}_Resume`;
+
+    //     const printStyle = document.createElement("style");
+    //     printStyle.innerHTML = `
+    //         @media print {
+    //             body {
+    //                 margin: 0 !important;
+    //                 padding: 0 !important;
+    //                 -webkit-print-color-adjust: exact !important;
+    //                 print-color-adjust: exact !important;
+    //                 color-adjust: exact !important;
+    //                 height: 100vh !important;
+    //                 max-height: 100vh !important;
+    //                 overflow: hidden !important;
+    //             }
+
+    //             @page {
+    //                 size: letter !important;
+    //                 margin: 0 !important;
+    //             }
+
+    //             #resume-print-only {
+    //                 display: flex !important;
+    //                 flex-direction: column !important;
+    //                 font-family: "Times New Roman", Times, serif !important;
+    //                 font-size: 11px !important;
+    //                 font-weight: 500;
+    //                 line-height: 1.25 !important;
+    //                 letter-spacing: 0.1px !important;
+    //                 color: #000 !important;
+    //                 width: 100% !important;
+    //                 height: 100vh !important;
+    //                 max-height: 100vh !important;
+    //                 overflow: hidden !important;
+    //                 padding: 0.5in 0.6in !important;
+    //                 box-sizing: border-box !important;
+    //                 page-break-inside: avoid !important;
+    //                 page-break-before: avoid !important;
+    //                 page-break-after: avoid !important;
+    //             }
+
+    //             * {
+    //                 page-break-before: avoid !important;
+    //                 page-break-after: avoid !important;
+    //                 page-break-inside: avoid !important;
+    //                 break-inside: avoid !important;
+    //             }
+    //         }
+    //     `;
+
+    //     document.head.appendChild(printStyle);
+
+    //     setTimeout(() => {
+    //         window.print();
+    //         setTimeout(() => {
+    //             document.title = originalTitle;
+    //             document.head.removeChild(printStyle);
+    //         }, 1000);
+    //     }, 100);
+
+    //     if (onDownloadClick) {
+    //         onDownloadClick();
+    //     }
+    // };
+
     const handlePrintConfirm = () => {
         setShowWarningModal(false);
-
+      
+        // store original document title and set custom print title
         const originalTitle = document.title;
         document.title = `${data.personalInfo.name || "Resume"}_Resume`;
-
+      
+        // create a print style block (keeps your existing print rules but scoped)
         const printStyle = document.createElement("style");
+        printStyle.id = "resume-temp-print-style";
         printStyle.innerHTML = `
-            @media print {
-                body {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                    color-adjust: exact !important;
-                    height: 100vh !important;
-                    max-height: 100vh !important;
-                    overflow: hidden !important;
-                }
-
-                @page {
-                    size: letter !important;
-                    margin: 0 !important;
-                }
-
-                #resume-print-only {
-                    display: flex !important;
-                    flex-direction: column !important;
-                    font-family: "Times New Roman", Times, serif !important;
-                    font-size: 11px !important;
-                    font-weight: 500;
-                    line-height: 1.25 !important;
-                    letter-spacing: 0.1px !important;
-                    color: #000 !important;
-                    width: 100% !important;
-                    height: 100vh !important;
-                    max-height: 100vh !important;
-                    overflow: hidden !important;
-                    padding: 0.5in 0.6in !important;
-                    box-sizing: border-box !important;
-                    page-break-inside: avoid !important;
-                    page-break-before: avoid !important;
-                    page-break-after: avoid !important;
-                }
-
-                * {
-                    page-break-before: avoid !important;
-                    page-break-after: avoid !important;
-                    page-break-inside: avoid !important;
-                    break-inside: avoid !important;
-                }
-            }
+          @media print {
+            @page { size: letter; margin: 0 0.2in 0.2in 0.2in; }
+            html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
+            
+            body.printing-resume > :not(#temp-resume-print-wrapper) { display: none !important; }
+            #temp-resume-print-wrapper { display: block !important; width: 100% !important; }
+            #temp-resume-print-wrapper #resume-print-only { display: block !important; visibility: visible !important; }
+          }
+          /* also hide non-print content while we call window.print on screen to avoid layout jumps */
+          body.printing-resume > :not(#temp-resume-print-wrapper) { display: none !important; }
+          #temp-resume-print-wrapper { display: block !important; width: 100%; background: white; }
         `;
-
+      
         document.head.appendChild(printStyle);
-
-        setTimeout(() => {
-            window.print();
-            setTimeout(() => {
-                document.title = originalTitle;
-                document.head.removeChild(printStyle);
-            }, 1000);
-        }, 100);
-
-        if (onDownloadClick) {
-            onDownloadClick();
+      
+        // find the print-only element in the component
+        const originalPrintElem = document.getElementById("resume-print-only");
+        if (!originalPrintElem) {
+          // fallback to calling normal print
+          window.print();
+          document.title = originalTitle;
+          if (document.head.contains(printStyle)) document.head.removeChild(printStyle);
+          return;
         }
-    };
+      
+        // create a temporary wrapper and append a deep clone of the print-only element
+        const wrapper = document.createElement("div");
+        wrapper.id = "temp-resume-print-wrapper";
+        // add the same parent class so scss rules that look for .resume-single-page apply
+        wrapper.className = "resume-single-page";
+        // clone deeply so event handlers etc. are not needed
+        const clone = originalPrintElem.cloneNode(true) as HTMLElement;
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+      
+        // add marker class to body so our print style hides everything else
+        document.body.classList.add("printing-resume");
+      
+        // Small timeout to let DOM and style apply, then print
+        setTimeout(() => {
+          try {
+            window.print();
+          } finally {
+            // cleanup immediately after printing (give a small delay to avoid cutting off the print job)
+            setTimeout(() => {
+              // restore title and remove temporary DOM + style + class
+              document.title = originalTitle;
+              document.body.classList.remove("printing-resume");
+              if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
+              const tmpStyle = document.getElementById("resume-temp-print-style");
+              if (tmpStyle && tmpStyle.parentNode) tmpStyle.parentNode.removeChild(tmpStyle);
+              // remove our printStyle if still present
+              if (document.head.contains(printStyle)) document.head.removeChild(printStyle);
+            }, 700);
+          }
+        }, 120);
+        
+        // optional callback
+        if (onDownloadClick) onDownloadClick();
+      };
 
     const showPrintInstructions = () => {
         alert(`Print Settings Instructions:
@@ -1086,7 +1158,7 @@ These settings will give you the best results for your resume PDF.`);
     );
 
     return (
-        <>
+        <div className="resume-single-page">
             {/* Warning Modal */}
             {showWarningModal && (
                 <div
@@ -1380,6 +1452,6 @@ These settings will give you the best results for your resume PDF.`);
                     `,
                 }}
             />
-        </>
+        </div>
     );
 };
